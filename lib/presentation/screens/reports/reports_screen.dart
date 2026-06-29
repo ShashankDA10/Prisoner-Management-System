@@ -18,10 +18,10 @@ import '../../widgets/common/page_wrapper.dart';
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
   @override
-  ConsumerState<ReportsScreen> createState() => _State();
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _State extends ConsumerState<ReportsScreen> {
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   ReportType _type = ReportType.stationWise;
   bool _generating = false;
 
@@ -34,7 +34,8 @@ class _State extends ConsumerState<ReportsScreen> {
     ReportType.released    => all.where((p) =>
         p.status == PrisonerStatus.released ||
         p.status == PrisonerStatus.bail).toList(),
-    ReportType.bail        => all.where((p) => p.status == PrisonerStatus.bail).toList(),
+    ReportType.bail        => all.where((p) =>
+        p.status == PrisonerStatus.bail).toList(),
   };
 
   void _drillStation(String station) {
@@ -45,22 +46,24 @@ class _State extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final prisonersAsync = ref.watch(allPrisonersProvider);
-
     final isMobile = MediaQuery.sizeOf(context).width < 600;
+    return isMobile ? _buildMobile() : _buildDesktop();
+  }
+
+  // ── Route to correct layout ────────────────────────────────────────────────
+
+  Widget _buildDesktop() {
+    final prisonersAsync = ref.watch(allPrisonersProvider);
     return PageWrapper(
       title: 'Reports',
       subtitle: 'Generate and export prisoner reports',
-      scrollable: isMobile,
       child: prisonersAsync.when(
         loading: () => const LoadingState(),
         error: (e, _) => ErrorState(message: e.toString()),
         data: (all) {
           final filtered = _forType(all);
-          return _Content(
-            all:       all,
-            filtered:  filtered,
-            type:      _type,
+          return _DesktopLayout(
+            all: all, filtered: filtered, type: _type,
             onTypeChanged: (t) => setState(() => _type = t),
             generating: _generating,
             onGeneratePdf:   () => _generatePdf(filtered),
@@ -71,6 +74,32 @@ class _State extends ConsumerState<ReportsScreen> {
       ),
     );
   }
+
+  Widget _buildMobile() {
+    final prisonersAsync = ref.watch(allPrisonersProvider);
+    return Scaffold(
+      backgroundColor: AppTheme.surfaceGrey,
+      body: SafeArea(
+        child: prisonersAsync.when(
+          loading: () => const LoadingState(),
+          error: (e, _) => ErrorState(message: e.toString()),
+          data: (all) {
+            final filtered = _forType(all);
+            return _MobileLayout(
+              all: all, filtered: filtered, type: _type,
+              onTypeChanged: (t) => setState(() => _type = t),
+              generating: _generating,
+              onGeneratePdf:   () => _generatePdf(filtered),
+              onGenerateExcel: () => _generateExcel(filtered),
+              onStationTap:    _drillStation,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // ── PDF / Excel generation (shared) ────────────────────────────────────────
 
   Future<void> _generatePdf(List<PrisonerModel> data) async {
     setState(() => _generating = true);
@@ -88,16 +117,20 @@ class _State extends ConsumerState<ReportsScreen> {
       ]),
       build: (ctx) => [
         pw.TableHelper.fromTextArray(
-          headers: ['Prisoner ID', 'Name', 'Age', 'Police Station', 'Prison', 'Admitted', 'Status'],
+          headers: ['Prisoner ID', 'Name', 'Age', 'Police Station',
+                    'Prison', 'Admitted', 'Status'],
           data: data.map((p) => [
             p.prisonerId, p.name, '${p.age}', p.policeStation,
             p.prisonName, p.admissionDate.displayDate, p.status.label,
           ]).toList(),
           cellStyle: const pw.TextStyle(fontSize: 8),
           headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-          headerDecoration:     const pw.BoxDecoration(color: PdfColor.fromInt(0xFF1A3A5C)),
-          headerCellDecoration: const pw.BoxDecoration(color: PdfColor.fromInt(0xFF1A3A5C)),
-          oddRowDecoration:     const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF4F6F8)),
+          headerDecoration:
+              const pw.BoxDecoration(color: PdfColor.fromInt(0xFF1A3A5C)),
+          headerCellDecoration:
+              const pw.BoxDecoration(color: PdfColor.fromInt(0xFF1A3A5C)),
+          oddRowDecoration:
+              const pw.BoxDecoration(color: PdfColor.fromInt(0xFFF4F6F8)),
         ),
         pw.SizedBox(height: 12),
         pw.Text('Total Records: ${data.length}',
@@ -110,8 +143,8 @@ class _State extends ConsumerState<ReportsScreen> {
 
   Future<void> _generateExcel(List<PrisonerModel> data) async {
     setState(() => _generating = true);
-    final excel  = xl.Excel.createExcel();
-    final sheet  = excel['Report'];
+    final excel = xl.Excel.createExcel();
+    final sheet = excel['Report'];
     final headers = [
       'Prisoner ID', 'Name', 'Age', 'Gender', 'FIR Number', 'Crime Number',
       'Police Station', 'Prison', 'Admission Date', 'Status',
@@ -120,12 +153,16 @@ class _State extends ConsumerState<ReportsScreen> {
     sheet.appendRow(headers.map((h) => xl.TextCellValue(h)).toList());
     for (final p in data) {
       sheet.appendRow([
-        xl.TextCellValue(p.prisonerId), xl.TextCellValue(p.name), xl.IntCellValue(p.age),
-        xl.TextCellValue(p.gender.label), xl.TextCellValue(p.firNumber), xl.TextCellValue(p.crimeNumber),
+        xl.TextCellValue(p.prisonerId), xl.TextCellValue(p.name),
+        xl.IntCellValue(p.age),        xl.TextCellValue(p.gender.label),
+        xl.TextCellValue(p.firNumber), xl.TextCellValue(p.crimeNumber),
         xl.TextCellValue(p.policeStation), xl.TextCellValue(p.prisonName),
-        xl.TextCellValue(p.admissionDate.displayDate), xl.TextCellValue(p.status.label),
-        xl.TextCellValue(p.ipcSections.join(', ')), xl.TextCellValue(p.bnsSections.join(', ')),
-        xl.TextCellValue(p.releaseDate?.displayDate ?? ''), xl.TextCellValue(p.releaseReason?.label ?? ''),
+        xl.TextCellValue(p.admissionDate.displayDate),
+        xl.TextCellValue(p.status.label),
+        xl.TextCellValue(p.ipcSections.join(', ')),
+        xl.TextCellValue(p.bnsSections.join(', ')),
+        xl.TextCellValue(p.releaseDate?.displayDate ?? ''),
+        xl.TextCellValue(p.releaseReason?.label ?? ''),
       ]);
     }
     if (mounted) setState(() => _generating = false);
@@ -136,9 +173,11 @@ class _State extends ConsumerState<ReportsScreen> {
   }
 }
 
-// ── Content ──────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// Desktop layout (unchanged sidebar + right-panel design)
+// ══════════════════════════════════════════════════════════════════════════════
 
-class _Content extends StatelessWidget {
+class _DesktopLayout extends StatelessWidget {
   final List<PrisonerModel> all;
   final List<PrisonerModel> filtered;
   final ReportType type;
@@ -146,73 +185,38 @@ class _Content extends StatelessWidget {
   final bool generating;
   final VoidCallback onGeneratePdf;
   final VoidCallback onGenerateExcel;
-  final void Function(String station) onStationTap;
+  final void Function(String) onStationTap;
 
-  const _Content({
-    required this.all,
-    required this.filtered,
-    required this.type,
-    required this.onTypeChanged,
-    required this.generating,
-    required this.onGeneratePdf,
-    required this.onGenerateExcel,
+  const _DesktopLayout({
+    required this.all, required this.filtered, required this.type,
+    required this.onTypeChanged, required this.generating,
+    required this.onGeneratePdf, required this.onGenerateExcel,
     required this.onStationTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.sizeOf(context).width < 600;
-
-    final byStation = <String, int>{};
-    final byPrison  = <String, int>{};
-    for (final p in filtered) {
-      if (p.policeStation.isNotEmpty) byStation[p.policeStation] = (byStation[p.policeStation] ?? 0) + 1;
-      if (p.prisonName.isNotEmpty)    byPrison[p.prisonName]     = (byPrison[p.prisonName]     ?? 0) + 1;
-    }
-
-    final configPanel = _ConfigPanel(
-      type: type,
-      onTypeChanged: onTypeChanged,
-      filtered: filtered,
-      all: all,
-      generating: generating,
-      onGeneratePdf: onGeneratePdf,
-      onGenerateExcel: onGenerateExcel,
-      isMobile: isMobile,
-    );
-
-    final summaryPanels = [
-      _SummaryCard(
-        title: 'By Police Station',
-        data: byStation,
-        onRowTap: onStationTap,
-        tapTooltip: 'Tap to view prisoners from this station',
-      ),
-      _SummaryCard(title: 'By Prison', data: byPrison),
-    ];
-
-    if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          configPanel,
-          const SizedBox(height: Spacing.md),
-          ...summaryPanels.expand((w) => [w, const SizedBox(height: Spacing.md)]),
-          _StatusSummary(prisoners: all, isMobile: true),
-          const SizedBox(height: Spacing.md),
-        ],
-      );
-    }
+    final byStation = _groupBy(filtered, (p) => p.policeStation);
+    final byPrison  = _groupBy(filtered, (p) => p.prisonName);
 
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 260, child: configPanel),
+      SizedBox(
+        width: 260,
+        child: _ConfigPanel(
+          type: type, onTypeChanged: onTypeChanged,
+          filtered: filtered, all: all, generating: generating,
+          onGeneratePdf: onGeneratePdf, onGenerateExcel: onGenerateExcel,
+        ),
+      ),
       const SizedBox(width: Spacing.md),
       Expanded(
         child: Column(children: [
           Row(children: [
-            Expanded(child: summaryPanels[0]),
+            Expanded(child: _SummaryCard(
+                title: 'By Police Station', data: byStation,
+                onRowTap: onStationTap)),
             const SizedBox(width: Spacing.md),
-            Expanded(child: summaryPanels[1]),
+            Expanded(child: _SummaryCard(title: 'By Prison', data: byPrison)),
           ]),
           const SizedBox(height: Spacing.md),
           _StatusSummary(prisoners: all, isMobile: false),
@@ -222,7 +226,206 @@ class _Content extends StatelessWidget {
   }
 }
 
-// ── Config panel ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// Mobile layout — fully stacked, no side panel, no horizontal scrolling
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _MobileLayout extends StatelessWidget {
+  final List<PrisonerModel> all;
+  final List<PrisonerModel> filtered;
+  final ReportType type;
+  final void Function(ReportType) onTypeChanged;
+  final bool generating;
+  final VoidCallback onGeneratePdf;
+  final VoidCallback onGenerateExcel;
+  final void Function(String) onStationTap;
+
+  const _MobileLayout({
+    required this.all, required this.filtered, required this.type,
+    required this.onTypeChanged, required this.generating,
+    required this.onGeneratePdf, required this.onGenerateExcel,
+    required this.onStationTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final byStation = _groupBy(filtered, (p) => p.policeStation);
+    final byPrison  = _groupBy(filtered, (p) => p.prisonName);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(Spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── Page heading ──────────────────────────────────────────────────
+          const Text(
+            'Reports',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.primaryNavy,
+            ),
+          ),
+          const Text(
+            'Generate and export prisoner reports',
+            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+          ),
+          const SizedBox(height: Spacing.md),
+
+          // ── Report type selector ──────────────────────────────────────────
+          _MobileSection(
+            title: 'Report Type',
+            child: Column(
+              children: ReportType.values.map((t) {
+                final selected = t == type;
+                return GestureDetector(
+                  onTap: () => onTypeChanged(t),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: Spacing.sm),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Spacing.md, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppTheme.primaryNavy.withValues(alpha: 0.07)
+                          : AppTheme.surfaceGrey,
+                      borderRadius: BorderRadius.circular(Radii.md),
+                      border: Border.all(
+                        color: selected
+                            ? AppTheme.primaryNavy.withValues(alpha: 0.4)
+                            : AppTheme.borderLight,
+                        width: selected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(children: [
+                      Icon(
+                        selected
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        size: 20,
+                        color: selected
+                            ? AppTheme.primaryNavy
+                            : AppTheme.textDisabled,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        t.label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: selected
+                              ? AppTheme.primaryNavy
+                              : AppTheme.textPrimary,
+                        ),
+                      ),
+                    ]),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: Spacing.md),
+
+          // ── Record count + export ─────────────────────────────────────────
+          _MobileSection(
+            title: 'Export',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: [
+                  const Icon(Icons.table_rows_outlined,
+                      size: 14, color: AppTheme.textSecondary),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${filtered.length} of ${all.length} records',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryNavy),
+                  ),
+                ]),
+                const SizedBox(height: Spacing.md),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    icon: generating
+                        ? const SizedBox(
+                            width: 16, height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                    label: const Text('Export PDF',
+                        style: TextStyle(fontSize: 14)),
+                    onPressed: generating ? null : onGeneratePdf,
+                  ),
+                ),
+                const SizedBox(height: Spacing.sm),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.table_chart_outlined, size: 18),
+                    label: const Text('Export Excel',
+                        style: TextStyle(fontSize: 14)),
+                    onPressed: generating ? null : onGenerateExcel,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Spacing.md),
+
+          // ── Status summary ────────────────────────────────────────────────
+          _StatusSummary(prisoners: all, isMobile: true),
+          const SizedBox(height: Spacing.md),
+
+          // ── By police station ─────────────────────────────────────────────
+          _SummaryCard(
+            title: 'By Police Station',
+            data: byStation,
+            onRowTap: onStationTap,
+          ),
+          const SizedBox(height: Spacing.md),
+
+          // ── By prison ─────────────────────────────────────────────────────
+          _SummaryCard(title: 'By Prison', data: byPrison),
+          const SizedBox(height: Spacing.xxl),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Mobile section card wrapper ───────────────────────────────────────────────
+
+class _MobileSection extends StatelessWidget {
+  final String title;
+  final Widget child;
+  const _MobileSection({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(Radii.md),
+        border: Border.all(color: AppTheme.borderLight),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title,
+            style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: AppTheme.primaryNavy)),
+        const SizedBox(height: Spacing.md),
+        child,
+      ]),
+    );
+  }
+}
+
+// ── Desktop config panel ──────────────────────────────────────────────────────
 
 class _ConfigPanel extends StatelessWidget {
   final ReportType type;
@@ -232,17 +435,11 @@ class _ConfigPanel extends StatelessWidget {
   final bool generating;
   final VoidCallback onGeneratePdf;
   final VoidCallback onGenerateExcel;
-  final bool isMobile;
 
   const _ConfigPanel({
-    required this.type,
-    required this.onTypeChanged,
-    required this.filtered,
-    required this.all,
-    required this.generating,
-    required this.onGeneratePdf,
-    required this.onGenerateExcel,
-    required this.isMobile,
+    required this.type, required this.onTypeChanged,
+    required this.filtered, required this.all, required this.generating,
+    required this.onGeneratePdf, required this.onGenerateExcel,
   });
 
   @override
@@ -257,9 +454,7 @@ class _ConfigPanel extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const Text('Report Type',
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        const SizedBox(height: 4),
-
-        // Radio tiles — larger touch targets on mobile (no dense, minimal padding).
+        const SizedBox(height: 8),
         RadioGroup<ReportType>(
           groupValue: type,
           onChanged: (v) { if (v != null) onTypeChanged(v); },
@@ -267,37 +462,31 @@ class _ConfigPanel extends StatelessWidget {
             children: ReportType.values.map((t) => RadioListTile<ReportType>(
               value: t,
               title: Text(t.label, style: const TextStyle(fontSize: 13)),
-              contentPadding: isMobile
-                  ? const EdgeInsets.symmetric(horizontal: 4)
-                  : EdgeInsets.zero,
-              dense: !isMobile,
-              visualDensity: isMobile
-                  ? VisualDensity.standard
-                  : VisualDensity.compact,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
             )).toList(),
           ),
         ),
-
         const SizedBox(height: 4),
         const Text('Showing:',
             style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
         Text(
           '${filtered.length} of ${all.length} records',
           style: const TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryNavy),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primaryNavy),
         ),
-
         const Divider(height: 24),
         const Text('Export',
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 12),
-
-        // Always stacked vertically — full width is achieved by
-        // CrossAxisAlignment.stretch on the parent Column.
         ElevatedButton.icon(
           icon: generating
-              ? const SizedBox(width: 14, height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? const SizedBox(
+                  width: 14, height: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.picture_as_pdf_outlined, size: 16),
           label: const Text('Export PDF'),
           onPressed: generating ? null : onGeneratePdf,
@@ -313,24 +502,22 @@ class _ConfigPanel extends StatelessWidget {
   }
 }
 
-// ── Summary card ─────────────────────────────────────────────────────────────
+// ── Summary card (shared) ─────────────────────────────────────────────────────
 
 class _SummaryCard extends StatelessWidget {
   final String title;
   final Map<String, int> data;
   final void Function(String)? onRowTap;
-  final String? tapTooltip;
 
   const _SummaryCard({
-    required this.title,
-    required this.data,
-    this.onRowTap,
-    this.tapTooltip,
+    required this.title, required this.data, this.onRowTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final sorted = data.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = data.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
@@ -340,12 +527,16 @@ class _SummaryCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Text(title,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.primaryNavy)),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppTheme.primaryNavy)),
           if (onRowTap != null) ...[
             const SizedBox(width: 6),
             const Tooltip(
               message: 'Tap a row to filter prisoners',
-              child: Icon(Icons.touch_app_outlined, size: 13, color: AppTheme.textDisabled),
+              child: Icon(Icons.touch_app_outlined,
+                  size: 13, color: AppTheme.textDisabled),
             ),
           ],
         ]),
@@ -353,26 +544,35 @@ class _SummaryCard extends StatelessWidget {
         if (sorted.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('No data', style: TextStyle(fontSize: 12, color: AppTheme.textDisabled)),
+            child: Text('No data',
+                style:
+                    TextStyle(fontSize: 12, color: AppTheme.textDisabled)),
           )
         else
           ...sorted.take(10).map((e) {
             final row = Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(children: [
-                Expanded(child: Text(e.key.isEmpty ? '(unknown)' : e.key,
-                    style: const TextStyle(fontSize: 12))),
+                Expanded(
+                  child: Text(
+                    e.key.isEmpty ? '(unknown)' : e.key,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                       color: AppTheme.primaryNavy.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4)),
                   child: Text('${e.value}',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppTheme.primaryNavy)),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: AppTheme.primaryNavy)),
                 ),
               ]),
             );
-
             if (onRowTap == null || e.key.isEmpty) return row;
             return InkWell(
               onTap: () => onRowTap!(e.key),
@@ -386,7 +586,7 @@ class _SummaryCard extends StatelessWidget {
   }
 }
 
-// ── Status summary ────────────────────────────────────────────────────────────
+// ── Status summary (shared, layout switches on isMobile) ─────────────────────
 
 class _StatusSummary extends StatelessWidget {
   final List<PrisonerModel> prisoners;
@@ -407,12 +607,13 @@ class _StatusSummary extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: AppTheme.borderLight)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Status Summary (all records)',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.primaryNavy)),
+        const Text('Status Summary',
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: AppTheme.primaryNavy)),
         const Divider(height: 16),
-
         if (isMobile)
-          // GridView avoids the overflow from manual fixed-width tile calculations.
           GridView.count(
             crossAxisCount: 2,
             shrinkWrap: true,
@@ -421,7 +622,7 @@ class _StatusSummary extends StatelessWidget {
             mainAxisSpacing: Spacing.sm,
             childAspectRatio: 2.2,
             children: PrisonerStatus.values
-                .map((s) => _statusTile(s, counts[s] ?? 0))
+                .map((s) => _tile(s, counts[s] ?? 0))
                 .toList(),
           )
         else
@@ -429,7 +630,7 @@ class _StatusSummary extends StatelessWidget {
             children: PrisonerStatus.values.map((s) => Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: _statusTile(s, counts[s] ?? 0),
+                child: _tile(s, counts[s] ?? 0),
               ),
             )).toList(),
           ),
@@ -437,26 +638,36 @@ class _StatusSummary extends StatelessWidget {
     );
   }
 
-  Widget _statusTile(PrisonerStatus s, int count) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-          color: AppTheme.surfaceGrey, borderRadius: BorderRadius.circular(6)),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(
-          '$count',
-          style: const TextStyle(
-              fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.primaryNavy),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          s.label,
-          style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ]),
-    );
+  Widget _tile(PrisonerStatus s, int count) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: AppTheme.surfaceGrey,
+            borderRadius: BorderRadius.circular(6)),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text('$count',
+              style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryNavy)),
+          const SizedBox(height: 2),
+          Text(s.label,
+              style: const TextStyle(
+                  fontSize: 11, color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+        ]),
+      );
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+
+Map<String, int> _groupBy(
+    List<PrisonerModel> list, String Function(PrisonerModel) key) {
+  final map = <String, int>{};
+  for (final p in list) {
+    final k = key(p);
+    if (k.isNotEmpty) map[k] = (map[k] ?? 0) + 1;
   }
+  return map;
 }

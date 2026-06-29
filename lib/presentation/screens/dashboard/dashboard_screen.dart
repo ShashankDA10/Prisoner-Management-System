@@ -14,6 +14,20 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+    return isMobile ? const _DashboardMobile() : const _DashboardDesktop();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Desktop layout
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _DashboardDesktop extends ConsumerWidget {
+  const _DashboardDesktop();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(dashboardStatsProvider);
     final now = DateTime.now();
 
@@ -23,138 +37,312 @@ class DashboardScreen extends ConsumerWidget {
       scrollable: true,
       child: statsAsync.when(
         loading: () => const LoadingState(),
-        error: (e, _) => ErrorState(message: e.toString(), onRetry: () => ref.invalidate(dashboardStatsProvider)),
-        data: (stats) => _DashboardContent(stats: stats),
+        error: (e, _) => ErrorState(
+          message: e.toString(),
+          onRetry: () => ref.invalidate(dashboardStatsProvider),
+        ),
+        data: (stats) => _DesktopContent(stats: stats),
       ),
     );
   }
 }
 
-class _DashboardContent extends StatelessWidget {
+class _DesktopContent extends StatelessWidget {
   final Map<String, int> stats;
-  const _DashboardContent({required this.stats});
+  const _DesktopContent({required this.stats});
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 900;
-    final isTablet  = width >= 600;
-    final isMobile  = !isTablet;
+    final crossAxisCount = isDesktop ? 4 : 3;
 
-    final crossAxisCount = isDesktop ? 4 : (isTablet ? 3 : 2);
-    // Mobile: landscape-ish cards (1.5) so the icon + value + label all fit comfortably.
-    final childAspectRatio = isDesktop ? 1.6 : (isTablet ? 1.4 : 1.5);
-    final gridSpacing = isMobile ? Spacing.sm : Spacing.md;
-
-    final cards = [
-      _CardDef('Total Prisoners',    stats['total'] ?? 0,       Icons.groups,                    AppTheme.cardTotal),
-      _CardDef('Undertrials',        stats['undertrial'] ?? 0,  Icons.balance,                   AppTheme.cardUndertrial),
-      _CardDef('Convicted',          stats['convicted'] ?? 0,   Icons.gavel,                     AppTheme.cardConvicted),
-      _CardDef('Admitted Today',     stats['admitted'] ?? 0,    Icons.login,                     AppTheme.cardAdmitted),
-      _CardDef('Released',           stats['released'] ?? 0,    Icons.logout,                    AppTheme.cardReleased),
-      _CardDef('On Bail',            stats['bail'] ?? 0,        Icons.assignment_turned_in,      AppTheme.cardBail),
-      _CardDef('Transferred',        stats['transferred'] ?? 0, Icons.transfer_within_a_station, AppTheme.cardTransfer),
-    ];
-
-    final quickActions = [
-      _ActionDef(Icons.person_add_outlined,  'Add Prisoner',    () => context.go(Routes.prisonerAdd)),
-      _ActionDef(Icons.search,               'Search Records',  () => context.go(Routes.prisoners)),
-      _ActionDef(Icons.upload_file_outlined, 'Import Excel',    () => context.go('${Routes.prisoners}?import=1')),
-      _ActionDef(Icons.bar_chart_outlined,   'View Reports',    () => context.go(Routes.reports)),
-    ];
+    final cards = _buildCards(stats);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Stats grid ────────────────────────────────────────────────────────
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: gridSpacing,
-            mainAxisSpacing: gridSpacing,
-            childAspectRatio: childAspectRatio,
+            crossAxisSpacing: Spacing.md,
+            mainAxisSpacing: Spacing.md,
+            childAspectRatio: isDesktop ? 1.6 : 1.4,
           ),
           itemCount: cards.length,
-          itemBuilder: (ctx, i) {
-            final c = cards[i];
-            return StatCard(label: c.label, value: c.value, icon: c.icon, color: c.color);
-          },
+          itemBuilder: (ctx, i) => StatCard(
+            label: cards[i].label, value: cards[i].value,
+            icon: cards[i].icon, color: cards[i].color,
+          ),
         ),
-
-        SizedBox(height: isMobile ? Spacing.lg : Spacing.xl),
-
-        // ── Quick actions ─────────────────────────────────────────────────────
-        Text('Quick Actions', style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: Spacing.xl),
+        Text('Quick Actions',
+            style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: Spacing.md),
-
-        if (isMobile)
-          // 2-column grid so each action card stretches to fill its cell.
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: Spacing.sm,
-            mainAxisSpacing: Spacing.sm,
-            childAspectRatio: 3.0,
-            children: quickActions
-                .map((a) => _QuickAction(icon: a.icon, label: a.label, onTap: a.onTap))
-                .toList(),
-          )
-        else
-          Wrap(
-            spacing: Spacing.md,
-            runSpacing: Spacing.md,
-            children: quickActions
-                .map((a) => _QuickAction(icon: a.icon, label: a.label, onTap: a.onTap))
-                .toList(),
-          ),
-
-        SizedBox(height: isMobile ? Spacing.lg : Spacing.xl),
-
-        // ── Info banner ───────────────────────────────────────────────────────
-        Container(
-          padding: const EdgeInsets.all(Spacing.md),
-          decoration: BoxDecoration(
-            color: AppTheme.info.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(Radii.md),
-            border: Border.all(color: AppTheme.info.withValues(alpha: 0.2)),
-          ),
-          child: Row(children: [
-            const Icon(Icons.info_outline, size: 16, color: AppTheme.info),
-            const SizedBox(width: 10),
-            Expanded(child: Text(
-              'System connected to cloud backend. Data is shared across all devices in real time.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.info),
-            )),
-          ]),
+        Wrap(
+          spacing: Spacing.md,
+          runSpacing: Spacing.md,
+          children: _quickActions(context),
         ),
+        const SizedBox(height: Spacing.xl),
+        _infoBar(context),
       ],
     );
   }
 }
 
-// ── Data helpers ──────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+// Mobile layout — native-feeling card-per-row design
+// ══════════════════════════════════════════════════════════════════════════════
+
+class _DashboardMobile extends ConsumerWidget {
+  const _DashboardMobile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(dashboardStatsProvider);
+    final now = DateTime.now();
+
+    return Scaffold(
+      backgroundColor: AppTheme.surfaceGrey,
+      body: SafeArea(
+        child: Column(children: [
+          // ── Title bar ───────────────────────────────────────────────────────
+          Container(
+            width: double.infinity,
+            color: AppTheme.surfaceWhite,
+            padding: const EdgeInsets.fromLTRB(
+                Spacing.md, Spacing.sm, Spacing.md, Spacing.md),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text(
+                'Dashboard',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryNavy,
+                ),
+              ),
+              Text(
+                DateFormat('EEEE, d MMMM yyyy').format(now),
+                style: const TextStyle(
+                    fontSize: 12, color: AppTheme.textSecondary),
+              ),
+            ]),
+          ),
+
+          // ── Content ─────────────────────────────────────────────────────────
+          Expanded(
+            child: statsAsync.when(
+              loading: () => const LoadingState(),
+              error: (e, _) => ErrorState(
+                message: e.toString(),
+                onRetry: () => ref.invalidate(dashboardStatsProvider),
+              ),
+              data: (stats) => _MobileContent(stats: stats),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _MobileContent extends StatelessWidget {
+  final Map<String, int> stats;
+  const _MobileContent({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = _buildCards(stats);
+
+    return ListView(
+      padding: const EdgeInsets.all(Spacing.md),
+      children: [
+        // ── Stat cards — 2 per row grid ────────────────────────────────────
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: Spacing.sm,
+            mainAxisSpacing: Spacing.sm,
+            childAspectRatio: 1.6,
+          ),
+          itemCount: cards.length,
+          itemBuilder: (ctx, i) => _MobileStatCard(def: cards[i]),
+        ),
+        const SizedBox(height: Spacing.lg),
+
+        // ── Quick actions heading ──────────────────────────────────────────
+        const Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textPrimary,
+          ),
+        ),
+        const SizedBox(height: Spacing.sm),
+
+        // ── 2-column action grid ───────────────────────────────────────────
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: Spacing.sm,
+          mainAxisSpacing: Spacing.sm,
+          childAspectRatio: 2.6,
+          children: _quickActions(context),
+        ),
+        const SizedBox(height: Spacing.lg),
+
+        // ── Info banner ───────────────────────────────────────────────────
+        _infoBar(context),
+        const SizedBox(height: Spacing.xxl),
+      ],
+    );
+  }
+}
+
+/// Full-size stat card used on mobile — larger text, fills its cell.
+class _MobileStatCard extends StatelessWidget {
+  final _CardDef def;
+  const _MobileStatCard({required this.def});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceWhite,
+        borderRadius: BorderRadius.circular(Radii.md),
+        border: Border.all(color: AppTheme.borderLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: def.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(def.icon, color: def.color, size: 16),
+            ),
+            const Spacer(),
+            Container(
+              width: 3,
+              height: 20,
+              decoration: BoxDecoration(
+                  color: def.color, borderRadius: BorderRadius.circular(2)),
+            ),
+          ]),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${def.value}',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: def.color,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              Text(
+                def.label,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
 
 class _CardDef {
-  final String label; final int value; final IconData icon; final Color color;
+  final String label;
+  final int value;
+  final IconData icon;
+  final Color color;
   const _CardDef(this.label, this.value, this.icon, this.color);
 }
 
-class _ActionDef {
-  final IconData icon; final String label; final VoidCallback onTap;
-  const _ActionDef(this.icon, this.label, this.onTap);
-}
+List<_CardDef> _buildCards(Map<String, int> stats) => [
+  _CardDef('Total Prisoners',    stats['total'] ?? 0,       Icons.groups,                    AppTheme.cardTotal),
+  _CardDef('Undertrials',        stats['undertrial'] ?? 0,  Icons.balance,                   AppTheme.cardUndertrial),
+  _CardDef('Convicted',          stats['convicted'] ?? 0,   Icons.gavel,                     AppTheme.cardConvicted),
+  _CardDef('Admitted Today',     stats['admitted'] ?? 0,    Icons.login,                     AppTheme.cardAdmitted),
+  _CardDef('Released',           stats['released'] ?? 0,    Icons.logout,                    AppTheme.cardReleased),
+  _CardDef('On Bail',            stats['bail'] ?? 0,        Icons.assignment_turned_in,      AppTheme.cardBail),
+  _CardDef('Transferred',        stats['transferred'] ?? 0, Icons.transfer_within_a_station, AppTheme.cardTransfer),
+];
 
-// ── Quick-action tile ─────────────────────────────────────────────────────────
+List<Widget> _quickActions(BuildContext context) => [
+  _QuickActionTile(
+    icon: Icons.person_add_outlined,
+    label: 'Add Prisoner',
+    onTap: () => context.go(Routes.prisonerAdd),
+  ),
+  _QuickActionTile(
+    icon: Icons.search,
+    label: 'Search Records',
+    onTap: () => context.go(Routes.prisoners),
+  ),
+  _QuickActionTile(
+    icon: Icons.upload_file_outlined,
+    label: 'Import Excel',
+    onTap: () => context.go('${Routes.prisoners}?import=1'),
+  ),
+  _QuickActionTile(
+    icon: Icons.bar_chart_outlined,
+    label: 'View Reports',
+    onTap: () => context.go(Routes.reports),
+  ),
+];
 
-class _QuickAction extends StatelessWidget {
+Widget _infoBar(BuildContext context) => Container(
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: AppTheme.info.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(Radii.md),
+        border: Border.all(color: AppTheme.info.withValues(alpha: 0.2)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.info_outline, size: 16, color: AppTheme.info),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'System connected to cloud backend. Data is shared across all devices in real time.',
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppTheme.info),
+          ),
+        ),
+      ]),
+    );
+
+class _QuickActionTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
 
-  const _QuickAction({required this.icon, required this.label, required this.onTap});
+  const _QuickActionTile(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +358,6 @@ class _QuickAction extends StatelessWidget {
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 18, color: AppTheme.primaryNavy),
             const SizedBox(width: 8),
