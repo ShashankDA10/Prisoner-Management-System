@@ -25,7 +25,6 @@ class _State extends ConsumerState<ReportsScreen> {
   ReportType _type = ReportType.stationWise;
   bool _generating = false;
 
-  /// Filter full list by selected report type.
   List<PrisonerModel> _forType(List<PrisonerModel> all) => switch (_type) {
     ReportType.stationWise => all,
     ReportType.prisonWise  => all,
@@ -258,7 +257,9 @@ class _ConfigPanel extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const Text('Report Type',
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+
+        // Radio tiles — larger touch targets on mobile (no dense, minimal padding).
         RadioGroup<ReportType>(
           groupValue: type,
           onChanged: (v) { if (v != null) onTypeChanged(v); },
@@ -266,60 +267,47 @@ class _ConfigPanel extends StatelessWidget {
             children: ReportType.values.map((t) => RadioListTile<ReportType>(
               value: t,
               title: Text(t.label, style: const TextStyle(fontSize: 13)),
-              contentPadding: EdgeInsets.zero,
-              dense: true,
+              contentPadding: isMobile
+                  ? const EdgeInsets.symmetric(horizontal: 4)
+                  : EdgeInsets.zero,
+              dense: !isMobile,
+              visualDensity: isMobile
+                  ? VisualDensity.standard
+                  : VisualDensity.compact,
             )).toList(),
           ),
         ),
+
         const SizedBox(height: 4),
-        Text('Showing:',
-            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+        const Text('Showing:',
+            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
         Text(
           '${filtered.length} of ${all.length} records',
           style: const TextStyle(
               fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryNavy),
         ),
+
         const Divider(height: 24),
         const Text('Export',
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 12),
-        if (isMobile)
-          Row(children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                icon: generating
-                    ? const SizedBox(width: 14, height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.picture_as_pdf_outlined, size: 16),
-                label: const Text('PDF'),
-                onPressed: generating ? null : onGeneratePdf,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.table_chart_outlined, size: 16),
-                label: const Text('Excel'),
-                onPressed: generating ? null : onGenerateExcel,
-              ),
-            ),
-          ])
-        else ...[
-          ElevatedButton.icon(
-            icon: generating
-                ? const SizedBox(width: 14, height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.picture_as_pdf_outlined, size: 16),
-            label: const Text('Export PDF'),
-            onPressed: generating ? null : onGeneratePdf,
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            icon: const Icon(Icons.table_chart_outlined, size: 16),
-            label: const Text('Export Excel'),
-            onPressed: generating ? null : onGenerateExcel,
-          ),
-        ],
+
+        // Always stacked vertically — full width is achieved by
+        // CrossAxisAlignment.stretch on the parent Column.
+        ElevatedButton.icon(
+          icon: generating
+              ? const SizedBox(width: 14, height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.picture_as_pdf_outlined, size: 16),
+          label: const Text('Export PDF'),
+          onPressed: generating ? null : onGeneratePdf,
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.table_chart_outlined, size: 16),
+          label: const Text('Export Excel'),
+          onPressed: generating ? null : onGenerateExcel,
+        ),
       ]),
     );
   }
@@ -412,26 +400,6 @@ class _StatusSummary extends StatelessWidget {
       counts[p.status] = (counts[p.status] ?? 0) + 1;
     }
 
-    final tiles = PrisonerStatus.values.map((s) {
-      final count = counts[s] ?? 0;
-      return Container(
-        width: isMobile ? (MediaQuery.sizeOf(context).width - 64) / 2 : null,
-        margin: const EdgeInsets.only(right: 8, bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-            color: AppTheme.surfaceGrey, borderRadius: BorderRadius.circular(6)),
-        child: Column(children: [
-          Text('$count',
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.primaryNavy)),
-          const SizedBox(height: 2),
-          Text(s.label,
-              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-              textAlign: TextAlign.center),
-        ]),
-      );
-    }).toList();
-
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
@@ -442,10 +410,52 @@ class _StatusSummary extends StatelessWidget {
         const Text('Status Summary (all records)',
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppTheme.primaryNavy)),
         const Divider(height: 16),
+
         if (isMobile)
-          Wrap(children: tiles)
+          // GridView avoids the overflow from manual fixed-width tile calculations.
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: Spacing.sm,
+            mainAxisSpacing: Spacing.sm,
+            childAspectRatio: 2.2,
+            children: PrisonerStatus.values
+                .map((s) => _statusTile(s, counts[s] ?? 0))
+                .toList(),
+          )
         else
-          Row(children: tiles.map((t) => Expanded(child: t)).toList()),
+          Row(
+            children: PrisonerStatus.values.map((s) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _statusTile(s, counts[s] ?? 0),
+              ),
+            )).toList(),
+          ),
+      ]),
+    );
+  }
+
+  Widget _statusTile(PrisonerStatus s, int count) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+          color: AppTheme.surfaceGrey, borderRadius: BorderRadius.circular(6)),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text(
+          '$count',
+          style: const TextStyle(
+              fontSize: 20, fontWeight: FontWeight.w700, color: AppTheme.primaryNavy),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          s.label,
+          style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
       ]),
     );
   }

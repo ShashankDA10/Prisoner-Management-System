@@ -41,8 +41,18 @@ class _PumsHeaderState extends ConsumerState<PumsHeader> {
               icon: const Icon(Icons.menu, color: Colors.white),
               onPressed: () => Scaffold.of(ctx).openDrawer(),
             )),
+            const Text(
+              'PUMS',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(width: 8),
           ] else ...[
-            _LogoSlot(
+            const _LogoSlot(
               imagePath: 'assets/logos/logo_left.svg',
               isSvg: true,
               label: AppConstants.orgName,
@@ -117,7 +127,7 @@ class _PumsHeaderState extends ConsumerState<PumsHeader> {
           // Right logo — Bangalore City Police (webp)
           if (!widget.compact) ...[
             const SizedBox(width: 16),
-            _LogoSlot(
+            const _LogoSlot(
               imagePath: 'assets/logos/logo_right.webp',
               isSvg: false,
               label: AppConstants.cityPolice,

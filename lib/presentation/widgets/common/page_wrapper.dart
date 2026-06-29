@@ -34,7 +34,7 @@ class PageWrapper extends StatelessWidget {
       Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(
-          horizontal: Spacing.lg,
+          horizontal: isMobile ? Spacing.md : Spacing.lg,
           vertical: isMobile ? Spacing.sm : Spacing.md,
         ),
         decoration: const BoxDecoration(
