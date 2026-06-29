@@ -9,7 +9,7 @@ class ApiConfig {
   /// Desktop/emulator:   http://10.0.2.2:3000   (Android emulator → host)
   /// Real phone (LAN):   http://192.168.x.x:3000 (your PC's local IP)
   /// Deployed server:    https://api.yourdomain.com
-  static const String baseUrl = 'http://192.168.0.5:3000';
+  static const String baseUrl = 'https://prisoner-management-system-production.up.railway.app';
 
   static const String login     = '/api/auth/login';
   static const String logout    = '/api/auth/logout';
