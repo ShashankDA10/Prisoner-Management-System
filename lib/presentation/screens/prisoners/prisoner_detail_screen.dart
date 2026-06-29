@@ -8,7 +8,6 @@ import '../../../core/extensions/date_extension.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_router.dart';
 import '../../../data/models/prisoner_model.dart';
-import '../../../data/repositories/prisoner_repository.dart';
 import '../../../data/repositories/section_repository.dart';
 import '../../../data/models/section_model.dart';
 import '../../providers/prisoner_provider.dart';

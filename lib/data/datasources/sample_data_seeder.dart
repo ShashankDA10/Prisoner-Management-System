@@ -8,7 +8,7 @@ import '../repositories/prisoner_repository.dart';
 class SampleDataSeeder {
   SampleDataSeeder._();
 
-  static final _uuid = const Uuid();
+  static const _uuid = Uuid();
 
   static Future<void> seed(PrisonerRepository repo) async {
     final existing = await repo.getAll();

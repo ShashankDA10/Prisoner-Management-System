@@ -32,6 +32,13 @@ class _PrisonerTableState extends ConsumerState<PrisonerTable> {
   int _page = 0;
   static const _pageSize = 25;
 
+  @override
+  void didUpdateWidget(PrisonerTable old) {
+    super.didUpdateWidget(old);
+    // Reset to first page whenever the list is swapped (e.g. filter change).
+    if (old.prisoners != widget.prisoners) _page = 0;
+  }
+
   List<PrisonerModel> get _sorted {
     final list = [...widget.prisoners];
     list.sort((a, b) {
@@ -85,9 +92,9 @@ class _PrisonerTableState extends ConsumerState<PrisonerTable> {
                   DataColumn(label: const Text('Prisoner ID'), onSort: (i, _) => _sort(0)),
                   DataColumn(label: const Text('Name'),        onSort: (i, _) => _sort(1)),
                   DataColumn(label: const Text('Police Station'), onSort: (i, _) => _sort(2)),
-                  DataColumn(label: const Text('Prison')),
+                  const DataColumn(label: Text('Prison')),
                   DataColumn(label: const Text('Admitted'),    onSort: (i, _) => _sort(3)),
-                  DataColumn(label: const Text('Sections')),
+                  const DataColumn(label: Text('Sections')),
                   DataColumn(label: const Text('Status'),      onSort: (i, _) => _sort(4)),
                   const DataColumn(label: Text('Actions')),
                 ],
@@ -146,15 +153,15 @@ class _PrisonerTableState extends ConsumerState<PrisonerTable> {
   }
 
   void _confirmDelete(BuildContext ctx, WidgetRef ref, PrisonerModel p) {
-    showDialog(context: ctx, builder: (_) => AlertDialog(
+    showDialog(context: ctx, builder: (dlgCtx) => AlertDialog(
       title: const Text('Delete Record'),
       content: Text('Delete "${p.name}" (${p.prisonerId})? This cannot be undone.'),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(_), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(dlgCtx), child: const Text('Cancel')),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
           onPressed: () {
-            Navigator.pop(_);
+            Navigator.pop(dlgCtx);
             ref.read(prisonerNotifierProvider.notifier).deletePrisoner(p.id);
           },
           child: const Text('Delete'),

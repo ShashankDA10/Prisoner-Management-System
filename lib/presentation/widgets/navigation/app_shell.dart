@@ -65,9 +65,9 @@ class AppShell extends ConsumerWidget {
 
     // Mobile layout
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: const PumsHeader(compact: true),
+      appBar: const PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: PumsHeader(compact: true),
       ),
       drawer: Drawer(
         child: _SidebarNav(location: location, currentRole: currentUser.value?.role, inDrawer: true),
@@ -99,11 +99,11 @@ class _SidebarNav extends ConsumerWidget {
       child: Column(children: [
         if (inDrawer) ...[
           const SizedBox(height: 48),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Text(
               AppConstants.appFullName,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppTheme.textOnDark,
                 fontWeight: FontWeight.w700,
                 fontSize: 13,

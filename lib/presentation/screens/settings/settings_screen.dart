@@ -61,7 +61,7 @@ class _State extends ConsumerState<SettingsScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: AppTheme.info.withOpacity(0.06), borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.info.withOpacity(0.2))),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+            child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [Icon(Icons.info_outline, size: 14, color: AppTheme.info), SizedBox(width: 6), Text('Migration Ready', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.info))]),
               SizedBox(height: 8),
               Text('This system uses a database abstraction layer. Future migration to PostgreSQL, MySQL, or a REST API requires only replacing the repository implementations — all screens and providers remain unchanged.', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.5)),

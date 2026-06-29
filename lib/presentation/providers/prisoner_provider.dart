@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config/app_mode.dart';
 import '../../core/constants/enums.dart';
 import '../../data/models/prisoner_model.dart';
 import '../../data/repositories/prisoner_repository.dart';
-import 'auth_provider.dart';
+import '../../data/repositories/remote_prisoner_repository.dart';
 
-final prisonerRepositoryProvider = Provider<PrisonerRepository>((ref) => PrisonerRepository());
+final prisonerRepositoryProvider = Provider<PrisonerRepositoryBase>((ref) =>
+    kUseRemoteBackend ? RemotePrisonerRepository() : PrisonerRepository());
 
 /// All prisoners (unfiltered).
 final allPrisonersProvider = FutureProvider<List<PrisonerModel>>((ref) async {
@@ -22,16 +24,27 @@ final dashboardStatsProvider = FutureProvider<Map<String, int>>((ref) async {
 /// Search query state.
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
-/// Filtered prisoner list based on search.
-final filteredPrisonersProvider = FutureProvider<List<PrisonerModel>>((ref) async {
-  final query = ref.watch(searchQueryProvider);
-  final repo  = ref.watch(prisonerRepositoryProvider);
-  if (query.trim().isEmpty) return repo.getAll();
-  return repo.search(query.trim());
-});
-
 /// Status filter for prisoner list.
 final statusFilterProvider = StateProvider<PrisonerStatus?>((ref) => null);
+
+/// Police station filter (set from Reports screen drill-down).
+final stationFilterProvider = StateProvider<String?>((ref) => null);
+
+/// Filtered prisoner list based on search + status + station filters.
+final filteredPrisonersProvider = FutureProvider<List<PrisonerModel>>((ref) async {
+  final query   = ref.watch(searchQueryProvider);
+  final status  = ref.watch(statusFilterProvider);
+  final station = ref.watch(stationFilterProvider);
+  final repo    = ref.watch(prisonerRepositoryProvider);
+
+  List<PrisonerModel> list = query.trim().isEmpty
+      ? await repo.getAll()
+      : await repo.search(query.trim());
+
+  if (status  != null) list = list.where((p) => p.status == status).toList();
+  if (station != null) list = list.where((p) => p.policeStation == station).toList();
+  return list;
+});
 
 /// Date filter for admitted screen.
 final admittedDateFilterProvider = StateProvider<DateFilter>((ref) => DateFilter.thisMonth);
@@ -48,16 +61,16 @@ final releasedDateFilterProvider = StateProvider<DateFilter>((ref) => DateFilter
 
 /// Released prisoners.
 final releasedPrisonersProvider = FutureProvider<List<PrisonerModel>>((ref) async {
-  final repo   = ref.watch(prisonerRepositoryProvider);
-  final filter = ref.watch(releasedDateFilterProvider);
-  final all    = await repo.getByStatus(PrisonerStatus.released);
-  final bail   = await repo.getByStatus(PrisonerStatus.bail);
+  final repo = ref.watch(prisonerRepositoryProvider);
+  ref.watch(releasedDateFilterProvider); // watched so screen rebuilds on filter change
+  final all  = await repo.getByStatus(PrisonerStatus.released);
+  final bail = await repo.getByStatus(PrisonerStatus.bail);
   return [...all, ...bail];
 });
 
 /// Notifier for CRUD operations.
 class PrisonerNotifier extends AsyncNotifier<void> {
-  late PrisonerRepository _repo;
+  late PrisonerRepositoryBase _repo;
 
   @override
   Future<void> build() async {

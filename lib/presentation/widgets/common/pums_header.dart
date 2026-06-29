@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
@@ -34,26 +35,30 @@ class _PumsHeaderState extends ConsumerState<PumsHeader> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(children: [
-          // Left logo / menu button
+          // Left logo — Karnataka State Police (SVG)
           if (widget.compact) ...[
             Builder(builder: (ctx) => IconButton(
               icon: const Icon(Icons.menu, color: Colors.white),
               onPressed: () => Scaffold.of(ctx).openDrawer(),
             )),
           ] else ...[
-            _LogoSlot(label: AppConstants.orgName),
+            _LogoSlot(
+              imagePath: 'assets/logos/logo_left.svg',
+              isSvg: true,
+              label: AppConstants.orgName,
+            ),
             const SizedBox(width: 16),
           ],
 
-          // Center logo (govt emblem)
+          // Centre logo — Government of Karnataka (webp)
           if (!widget.compact) ...[
             const Spacer(),
             Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              _GovtEmblem(),
+              _roundImage('assets/logos/logo_center.webp', 48),
               const SizedBox(height: 2),
-              Text(
+              const Text(
                 AppConstants.govtName,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppTheme.accentLight,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -64,22 +69,21 @@ class _PumsHeaderState extends ConsumerState<PumsHeader> {
             const Spacer(),
           ],
 
-          // Global search
-          SizedBox(
-            width: widget.compact ? double.infinity : 280,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+          // Search bar — Expanded on mobile, fixed width on desktop
+          Builder(builder: (_) {
+            final field = Padding(
+              padding: EdgeInsets.fromLTRB(widget.compact ? 8 : 0, 12, 0, 12),
               child: TextField(
                 controller: _searchCtrl,
                 onChanged: (v) => ref.read(searchQueryProvider.notifier).state = v,
                 style: const TextStyle(color: Colors.white, fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Search prisoners, FIR, sections...',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
-                  prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.5), size: 18),
+                  hintText: 'Search prisoners, FIR...',
+                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 12),
+                  prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.5), size: 18),
                   suffixIcon: _searchCtrl.text.isNotEmpty
                       ? IconButton(
-                          icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.5), size: 16),
+                          icon: Icon(Icons.clear, color: Colors.white.withValues(alpha: 0.5), size: 16),
                           onPressed: () {
                             _searchCtrl.clear();
                             ref.read(searchQueryProvider.notifier).state = '';
@@ -87,15 +91,15 @@ class _PumsHeaderState extends ConsumerState<PumsHeader> {
                         )
                       : null,
                   filled: true,
-                  fillColor: Colors.white.withOpacity(0.08),
+                  fillColor: Colors.white.withValues(alpha: 0.08),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.15)),
+                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.white.withOpacity(0.15)),
+                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.15)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6),
@@ -104,12 +108,20 @@ class _PumsHeaderState extends ConsumerState<PumsHeader> {
                   isDense: true,
                 ),
               ),
-            ),
-          ),
+            );
+            return widget.compact
+                ? Expanded(child: field)
+                : SizedBox(width: 280, child: field);
+          }),
 
+          // Right logo — Bangalore City Police (webp)
           if (!widget.compact) ...[
             const SizedBox(width: 16),
-            _LogoSlot(label: AppConstants.cityPolice),
+            _LogoSlot(
+              imagePath: 'assets/logos/logo_right.webp',
+              isSvg: false,
+              label: AppConstants.cityPolice,
+            ),
           ],
         ]),
       ),
@@ -117,22 +129,20 @@ class _PumsHeaderState extends ConsumerState<PumsHeader> {
   }
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/// Circular logo slot with label below.
 class _LogoSlot extends StatelessWidget {
+  final String imagePath;
+  final bool isSvg;
   final String label;
-  const _LogoSlot({required this.label});
+
+  const _LogoSlot({required this.imagePath, required this.isSvg, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Container(
-        width: 44, height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white.withOpacity(0.12),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
-        ),
-        child: const Icon(Icons.shield_outlined, color: Colors.white70, size: 24),
-      ),
+      _roundImage(imagePath, 44, isSvg: isSvg),
       const SizedBox(height: 2),
       SizedBox(
         width: 100,
@@ -152,17 +162,39 @@ class _LogoSlot extends StatelessWidget {
   }
 }
 
-class _GovtEmblem extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48, height: 48,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white.withOpacity(0.1),
-        border: Border.all(color: AppTheme.accent.withOpacity(0.5), width: 1.5),
-      ),
-      child: const Icon(Icons.account_balance, color: AppTheme.accentLight, size: 26),
+/// Renders an asset image (SVG or raster) clipped to a circle.
+Widget _roundImage(String path, double size, {bool isSvg = false}) {
+  Widget image;
+  if (isSvg) {
+    image = SvgPicture.asset(
+      path,
+      width: size, height: size,
+      fit: BoxFit.contain,
+      // Falls back to placeholder on error
+      placeholderBuilder: (_) => _placeholder(size),
+    );
+  } else {
+    image = Image.asset(
+      path,
+      width: size, height: size,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) => _placeholder(size),
     );
   }
+
+  return ClipOval(
+    child: Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(alpha: 0.1),
+      ),
+      child: image,
+    ),
+  );
 }
+
+Widget _placeholder(double size) => SizedBox(
+  width: size, height: size,
+  child: const Icon(Icons.shield_outlined, color: Colors.white54, size: 24),
+);

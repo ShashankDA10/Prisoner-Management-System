@@ -63,7 +63,11 @@ class _SectionPickerState extends ConsumerState<SectionPicker> {
             onDeleted: () {
               final ipc = List<String>.from(widget.selectedIpc);
               final bns = List<String>.from(widget.selectedBns);
-              if (s.$2) bns.remove(s.$1); else ipc.remove(s.$1);
+              if (s.$2) {
+                bns.remove(s.$1);
+              } else {
+                ipc.remove(s.$1);
+              }
               widget.onChanged(ipc, bns);
             },
           );

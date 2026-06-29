@@ -81,7 +81,9 @@ class _PrisonerFormScreenState extends ConsumerState<PrisonerFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [_pidCtrl, _nameCtrl, _ageCtrl, _firCtrl, _crimeCtrl, _psCtrl, _prisonCtrl, _remarkCtrl]) c.dispose();
+    for (final c in [_pidCtrl, _nameCtrl, _ageCtrl, _firCtrl, _crimeCtrl, _psCtrl, _prisonCtrl, _remarkCtrl]) {
+      c.dispose();
+    }
     super.dispose();
   }
 

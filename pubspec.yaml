@@ -53,6 +53,12 @@ dependencies:
   # Crypto (password hashing)
   crypto: ^3.0.3
 
+  # HTTP client for remote backend
+  dio: ^5.4.3+1
+
+  # Secure JWT token storage
+  flutter_secure_storage: ^9.2.2
+
   # Date picker
   syncfusion_flutter_datepicker: ^25.1.41
 

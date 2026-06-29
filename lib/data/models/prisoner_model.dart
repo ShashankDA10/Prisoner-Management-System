@@ -43,6 +43,65 @@ class PrisonerModel {
     this.createdBy,
   });
 
+  // ── API (camelCase JSON) ──────────────────────────────────────────────────
+
+  factory PrisonerModel.fromApiJson(Map<String, dynamic> j) {
+    return PrisonerModel(
+      id:            j['id']            as String,
+      prisonerId:    j['prisonerId']     as String,
+      name:          j['name']          as String,
+      age:           (j['age'] as num).toInt(),
+      gender:        Gender.values.firstWhere(
+          (e) => e.name == (j['gender'] as String),
+          orElse: () => Gender.male),
+      firNumber:     j['firNumber']     as String? ?? '',
+      crimeNumber:   j['crimeNumber']   as String? ?? '',
+      policeStation: j['policeStation'] as String? ?? '',
+      prisonName:    j['prisonName']    as String? ?? '',
+      admissionDate: DateTime.parse(j['admissionDate'] as String),
+      status:        PrisonerStatus.values.firstWhere(
+          (e) => e.name == (j['status'] as String),
+          orElse: () => PrisonerStatus.undertrial),
+      ipcSections:   (j['ipcSections'] as List?)?.cast<String>() ?? [],
+      bnsSections:   (j['bnsSections'] as List?)?.cast<String>() ?? [],
+      releaseDate:   j['releaseDate'] != null
+          ? DateTime.parse(j['releaseDate'] as String) : null,
+      releaseReason: j['releaseReason'] != null
+          ? ReleaseReason.values.firstWhere(
+              (e) => e.name == (j['releaseReason'] as String),
+              orElse: () => ReleaseReason.other)
+          : null,
+      remarks:   j['remarks']   as String?,
+      createdAt: DateTime.parse(j['createdAt'] as String),
+      updatedAt: DateTime.parse(j['updatedAt'] as String),
+      createdBy: j['createdBy'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toApiJson() => {
+    'id':            id,
+    'prisonerId':    prisonerId,
+    'name':          name,
+    'age':           age,
+    'gender':        gender.name,
+    'firNumber':     firNumber,
+    'crimeNumber':   crimeNumber,
+    'policeStation': policeStation,
+    'prisonName':    prisonName,
+    'admissionDate': admissionDate.toIso8601String(),
+    'status':        status.name,
+    'ipcSections':   ipcSections,
+    'bnsSections':   bnsSections,
+    'releaseDate':   releaseDate?.toIso8601String(),
+    'releaseReason': releaseReason?.name,
+    'remarks':       remarks,
+    'createdAt':     createdAt.toIso8601String(),
+    'updatedAt':     updatedAt.toIso8601String(),
+    'createdBy':     createdBy,
+  };
+
+  // ── SQLite (snake_case) ───────────────────────────────────────────────────
+
   factory PrisonerModel.fromMap(Map<String, dynamic> map) {
     return PrisonerModel(
       id:            map['id'] as String,

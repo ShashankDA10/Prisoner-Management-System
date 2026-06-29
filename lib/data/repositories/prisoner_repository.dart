@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
@@ -18,6 +17,11 @@ abstract class PrisonerRepositoryBase {
   Future<List<PrisonerModel>> getByStatus(PrisonerStatus status);
   Future<List<PrisonerModel>> getByDateFilter(DateFilter filter, {DateTime? from, DateTime? to});
   Future<Map<String, int>> getDashboardStats();
+  Future<Map<String, int>> bulkImport(
+    List<PrisonerModel> prisoners, {
+    bool updateExisting,
+    bool skipDuplicates,
+  });
 }
 
 /// SQLite implementation.
@@ -163,7 +167,7 @@ class PrisonerRepository implements PrisonerRepositoryBase {
     };
   }
 
-  /// Bulk insert for Excel import — returns {inserted, updated, skipped}.
+  @override
   Future<Map<String, int>> bulkImport(
       List<PrisonerModel> prisoners, {
       bool updateExisting = false,

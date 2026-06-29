@@ -43,7 +43,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: Routes.login,
     refreshListenable: GoRouterRefreshStream(authNotifier.stream),
     redirect: (context, state) {
-      final isLoggedIn = ref.read(authProvider) != null;
+      final isLoggedIn = ref.read(authProvider).value != null;
       final isLoginRoute = state.matchedLocation == Routes.login;
 
       if (!isLoggedIn && !isLoginRoute) return Routes.login;
