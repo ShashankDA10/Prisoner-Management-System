@@ -15,7 +15,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey     = GlobalKey<FormState>();
   final _userCtrl    = TextEditingController(text: 'admin');
-  final _passCtrl    = TextEditingController(text: 'admin@123');
+  final _passCtrl    = TextEditingController(text: 'Admin@1234');
   bool  _obscure     = true;
   bool  _loading     = false;
   String? _error;
@@ -155,7 +155,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                   Center(
                     child: Text(
-                      'Default: admin / admin@123',
+                      'Default: admin / Admin@1234',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.textDisabled, fontSize: 11),
                     ),
                   ),
