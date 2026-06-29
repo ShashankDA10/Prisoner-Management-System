@@ -77,24 +77,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   Widget _buildMobile() {
     final prisonersAsync = ref.watch(allPrisonersProvider);
-    return Scaffold(
-      backgroundColor: AppTheme.surfaceGrey,
-      body: SafeArea(
-        child: prisonersAsync.when(
-          loading: () => const LoadingState(),
-          error: (e, _) => ErrorState(message: e.toString()),
-          data: (all) {
-            final filtered = _forType(all);
-            return _MobileLayout(
-              all: all, filtered: filtered, type: _type,
-              onTypeChanged: (t) => setState(() => _type = t),
-              generating: _generating,
-              onGeneratePdf:   () => _generatePdf(filtered),
-              onGenerateExcel: () => _generateExcel(filtered),
-              onStationTap:    _drillStation,
-            );
-          },
-        ),
+    // Do NOT nest another Scaffold — AppShell already provides one.
+    return ColoredBox(
+      color: AppTheme.surfaceGrey,
+      child: prisonersAsync.when(
+        loading: () => const LoadingState(),
+        error: (e, _) => ErrorState(message: e.toString()),
+        data: (all) {
+          final filtered = _forType(all);
+          return _MobileLayout(
+            all: all, filtered: filtered, type: _type,
+            onTypeChanged: (t) => setState(() => _type = t),
+            generating: _generating,
+            onGeneratePdf:   () => _generatePdf(filtered),
+            onGenerateExcel: () => _generateExcel(filtered),
+            onStationTap:    _drillStation,
+          );
+        },
       ),
     );
   }
@@ -227,7 +226,7 @@ class _DesktopLayout extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Mobile layout — fully stacked, no side panel, no horizontal scrolling
+// Mobile layout — single column, dropdown selector, no horizontal scrolling
 // ══════════════════════════════════════════════════════════════════════════════
 
 class _MobileLayout extends StatelessWidget {
@@ -252,156 +251,175 @@ class _MobileLayout extends StatelessWidget {
     final byStation = _groupBy(filtered, (p) => p.policeStation);
     final byPrison  = _groupBy(filtered, (p) => p.prisonName);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(Spacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ── Page heading ──────────────────────────────────────────────────
-          const Text(
-            'Reports',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.primaryNavy,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── White title bar ───────────────────────────────────────────────
+        Container(
+          color: AppTheme.surfaceWhite,
+          padding: const EdgeInsets.fromLTRB(
+              Spacing.md, Spacing.sm, Spacing.md, Spacing.md),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Reports',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryNavy,
+                ),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Generate and export prisoner reports',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
+            ],
           ),
-          const Text(
-            'Generate and export prisoner reports',
-            style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-          ),
-          const SizedBox(height: Spacing.md),
+        ),
 
-          // ── Report type selector ──────────────────────────────────────────
-          _MobileSection(
-            title: 'Report Type',
-            child: Column(
-              children: ReportType.values.map((t) {
-                final selected = t == type;
-                return GestureDetector(
-                  onTap: () => onTypeChanged(t),
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: Spacing.sm),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: Spacing.md, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? AppTheme.primaryNavy.withValues(alpha: 0.07)
-                          : AppTheme.surfaceGrey,
-                      borderRadius: BorderRadius.circular(Radii.md),
-                      border: Border.all(
-                        color: selected
-                            ? AppTheme.primaryNavy.withValues(alpha: 0.4)
-                            : AppTheme.borderLight,
-                        width: selected ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Row(children: [
-                      Icon(
-                        selected
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        size: 20,
-                        color: selected
-                            ? AppTheme.primaryNavy
-                            : AppTheme.textDisabled,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        t.label,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.w400,
-                          color: selected
-                              ? AppTheme.primaryNavy
-                              : AppTheme.textPrimary,
-                        ),
-                      ),
-                    ]),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: Spacing.md),
-
-          // ── Record count + export ─────────────────────────────────────────
-          _MobileSection(
-            title: 'Export',
+        // ── Scrollable body ───────────────────────────────────────────────
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(Spacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Row(children: [
-                  const Icon(Icons.table_rows_outlined,
-                      size: 14, color: AppTheme.textSecondary),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${filtered.length} of ${all.length} records',
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryNavy),
+                // ── 1. Report type dropdown ─────────────────────────────────
+                _MobileCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Select Report Type',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: AppTheme.primaryNavy),
+                      ),
+                      const SizedBox(height: Spacing.sm),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 2),
+                        decoration: BoxDecoration(
+                          border:
+                              Border.all(color: AppTheme.borderLight),
+                          borderRadius:
+                              BorderRadius.circular(Radii.sm),
+                          color: AppTheme.surfaceWhite,
+                        ),
+                        child: DropdownButton<ReportType>(
+                          value: type,
+                          isExpanded: true,
+                          underline: const SizedBox.shrink(),
+                          icon: const Icon(Icons.expand_more,
+                              color: AppTheme.primaryNavy),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.textPrimary),
+                          items: ReportType.values
+                              .map((t) => DropdownMenuItem<ReportType>(
+                                    value: t,
+                                    child: Text(t.label),
+                                  ))
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) onTypeChanged(v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: Spacing.sm),
+                      Row(children: [
+                        const Icon(Icons.info_outline,
+                            size: 13, color: AppTheme.textDisabled),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${filtered.length} of ${all.length} records',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppTheme.textSecondary),
+                        ),
+                      ]),
+                    ],
                   ),
-                ]),
+                ),
                 const SizedBox(height: Spacing.md),
-                SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    icon: generating
-                        ? const SizedBox(
-                            width: 16, height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                    label: const Text('Export PDF',
-                        style: TextStyle(fontSize: 14)),
-                    onPressed: generating ? null : onGeneratePdf,
+
+                // ── 2. Export buttons ────────────────────────────────────────
+                _MobileCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Export',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: AppTheme.primaryNavy),
+                      ),
+                      const SizedBox(height: Spacing.md),
+                      SizedBox(
+                        height: 48,
+                        child: ElevatedButton.icon(
+                          icon: generating
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.picture_as_pdf_outlined,
+                                  size: 18),
+                          label: const Text('Export PDF',
+                              style: TextStyle(fontSize: 14)),
+                          onPressed: generating ? null : onGeneratePdf,
+                        ),
+                      ),
+                      const SizedBox(height: Spacing.sm),
+                      SizedBox(
+                        height: 48,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.table_chart_outlined,
+                              size: 18),
+                          label: const Text('Export Excel',
+                              style: TextStyle(fontSize: 14)),
+                          onPressed: generating ? null : onGenerateExcel,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: Spacing.sm),
-                SizedBox(
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.table_chart_outlined, size: 18),
-                    label: const Text('Export Excel',
-                        style: TextStyle(fontSize: 14)),
-                    onPressed: generating ? null : onGenerateExcel,
-                  ),
+                const SizedBox(height: Spacing.md),
+
+                // ── 3. Status summary (2-col grid, no horizontal scroll) ─────
+                _StatusSummary(prisoners: all, isMobile: true),
+                const SizedBox(height: Spacing.md),
+
+                // ── 4. By Police Station (full-width, vertical list) ─────────
+                _SummaryCard(
+                  title: 'By Police Station',
+                  data: byStation,
+                  onRowTap: onStationTap,
                 ),
+                const SizedBox(height: Spacing.md),
+
+                // ── 5. By Prison (full-width, vertical list) ─────────────────
+                _SummaryCard(title: 'By Prison', data: byPrison),
+
+                // Bottom padding above the nav bar
+                const SizedBox(height: Spacing.xxl),
               ],
             ),
           ),
-          const SizedBox(height: Spacing.md),
-
-          // ── Status summary ────────────────────────────────────────────────
-          _StatusSummary(prisoners: all, isMobile: true),
-          const SizedBox(height: Spacing.md),
-
-          // ── By police station ─────────────────────────────────────────────
-          _SummaryCard(
-            title: 'By Police Station',
-            data: byStation,
-            onRowTap: onStationTap,
-          ),
-          const SizedBox(height: Spacing.md),
-
-          // ── By prison ─────────────────────────────────────────────────────
-          _SummaryCard(title: 'By Prison', data: byPrison),
-          const SizedBox(height: Spacing.xxl),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-// ── Mobile section card wrapper ───────────────────────────────────────────────
-
-class _MobileSection extends StatelessWidget {
-  final String title;
+/// Lightweight card shell used only in the mobile layout.
+class _MobileCard extends StatelessWidget {
   final Widget child;
-  const _MobileSection({required this.title, required this.child});
+  const _MobileCard({required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -412,18 +430,12 @@ class _MobileSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(Radii.md),
         border: Border.all(color: AppTheme.borderLight),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title,
-            style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                color: AppTheme.primaryNavy)),
-        const SizedBox(height: Spacing.md),
-        child,
-      ]),
+      child: child,
     );
   }
 }
+
+// ── Mobile section card wrapper ───────────────────────────────────────────────
 
 // ── Desktop config panel ──────────────────────────────────────────────────────
 
