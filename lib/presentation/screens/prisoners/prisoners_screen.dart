@@ -19,26 +19,45 @@ class PrisonersScreen extends ConsumerWidget {
     final prisonersAsync  = ref.watch(filteredPrisonersProvider);
     final stationFilter   = ref.watch(stationFilterProvider);
 
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+
     return PageWrapper(
       title: 'Prisoner Records',
       subtitle: 'Manage and view all prisoner entries',
-      actions: [
-        OutlinedButton.icon(
-          icon: const Icon(Icons.upload_file_outlined, size: 16),
-          label: const Text('Import Excel'),
-          onPressed: () => showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => const ExcelImportDialog(),
-          ),
-        ),
-        const SizedBox(width: 10),
-        ElevatedButton.icon(
-          icon: const Icon(Icons.add, size: 16),
-          label: const Text('Add Prisoner'),
-          onPressed: () => context.go(Routes.prisonerAdd),
-        ),
-      ],
+      actions: isMobile
+          ? [
+              IconButton(
+                icon: const Icon(Icons.upload_file_outlined),
+                tooltip: 'Import Excel',
+                onPressed: () => showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const ExcelImportDialog(),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline),
+                tooltip: 'Add Prisoner',
+                onPressed: () => context.go(Routes.prisonerAdd),
+              ),
+            ]
+          : [
+              OutlinedButton.icon(
+                icon: const Icon(Icons.upload_file_outlined, size: 16),
+                label: const Text('Import Excel'),
+                onPressed: () => showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => const ExcelImportDialog(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Prisoner'),
+                onPressed: () => context.go(Routes.prisonerAdd),
+              ),
+            ],
       child: Column(children: [
         _FilterBar(),
         const SizedBox(height: Spacing.md),

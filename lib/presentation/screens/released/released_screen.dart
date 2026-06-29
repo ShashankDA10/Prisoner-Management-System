@@ -29,33 +29,40 @@ class ReleasedScreen extends ConsumerWidget {
           if (list.isEmpty) return const EmptyState(title: 'No releases found', subtitle: 'No prisoners released in this period.', icon: Icons.logout_outlined);
           return Container(
             decoration: BoxDecoration(color: AppTheme.surfaceWhite, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.borderLight)),
-            child: SingleChildScrollView(child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Prisoner ID')),
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Release Date')),
-                  DataColumn(label: Text('Release Reason')),
-                  DataColumn(label: Text('Bail Status')),
-                  DataColumn(label: Text('Prison')),
-                ],
-                rows: list.map((p) => DataRow(
-                  onSelectChanged: (_) => context.go('/prisoners/${p.id}'),
-                  cells: [
-                    DataCell(Text(p.prisonerId, style: const TextStyle(fontFamily: 'monospace', fontSize: 12))),
-                    DataCell(Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500))),
-                    DataCell(Text(p.releaseDate?.displayDate ?? '—')),
-                    DataCell(Text(p.releaseReason?.label ?? '—')),
-                    DataCell(StatusBadge(
-                      label: p.status == PrisonerStatus.bail ? 'On Bail' : 'Released',
-                      color: p.status == PrisonerStatus.bail ? AppTheme.info : AppTheme.success,
-                    )),
-                    DataCell(Text(p.prisonName)),
-                  ],
-                )).toList(),
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      columns: const [
+                        DataColumn(label: Text('Prisoner ID')),
+                        DataColumn(label: Text('Name')),
+                        DataColumn(label: Text('Release Date')),
+                        DataColumn(label: Text('Release Reason')),
+                        DataColumn(label: Text('Bail Status')),
+                        DataColumn(label: Text('Prison')),
+                      ],
+                      rows: list.map((p) => DataRow(
+                        onSelectChanged: (_) => context.go('/prisoners/${p.id}'),
+                        cells: [
+                          DataCell(Text(p.prisonerId, style: const TextStyle(fontFamily: 'monospace', fontSize: 12))),
+                          DataCell(Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500))),
+                          DataCell(Text(p.releaseDate?.displayDate ?? '—')),
+                          DataCell(Text(p.releaseReason?.label ?? '—')),
+                          DataCell(StatusBadge(
+                            label: p.status == PrisonerStatus.bail ? 'On Bail' : 'Released',
+                            color: p.status == PrisonerStatus.bail ? AppTheme.info : AppTheme.success,
+                          )),
+                          DataCell(Text(p.prisonName)),
+                        ],
+                      )).toList(),
+                    ),
+                  ),
+                ),
               ),
-            )),
+            ),
           );
         },
       ),

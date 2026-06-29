@@ -31,34 +31,41 @@ class AdmittedScreen extends ConsumerWidget {
           }
           return Container(
             decoration: BoxDecoration(color: AppTheme.surfaceWhite, borderRadius: BorderRadius.circular(8), border: Border.all(color: AppTheme.borderLight)),
-            child: SingleChildScrollView(child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Prisoner ID')),
-                  DataColumn(label: Text('Name')),
-                  DataColumn(label: Text('Prison')),
-                  DataColumn(label: Text('Admission Date')),
-                  DataColumn(label: Text('Police Station')),
-                  DataColumn(label: Text('Status')),
-                ],
-                rows: list.map((p) => DataRow(
-                  onSelectChanged: (_) => context.go('/prisoners/${p.id}'),
-                  cells: [
-                    DataCell(Text(p.prisonerId, style: const TextStyle(fontFamily: 'monospace', fontSize: 12))),
-                    DataCell(Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500))),
-                    DataCell(Text(p.prisonName)),
-                    DataCell(Row(children: [
-                      Icon(Icons.calendar_today, size: 12, color: p.admissionDate.isToday ? AppTheme.success : AppTheme.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(p.admissionDate.displayDate, style: TextStyle(color: p.admissionDate.isToday ? AppTheme.success : null, fontWeight: p.admissionDate.isToday ? FontWeight.w600 : FontWeight.w400)),
-                    ])),
-                    DataCell(Text(p.policeStation)),
-                    DataCell(StatusBadge(label: p.status.label, color: p.status == PrisonerStatus.undertrial ? AppTheme.warning : AppTheme.error)),
-                  ],
-                )).toList(),
+            child: LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      columns: const [
+                        DataColumn(label: Text('Prisoner ID')),
+                        DataColumn(label: Text('Name')),
+                        DataColumn(label: Text('Prison')),
+                        DataColumn(label: Text('Admission Date')),
+                        DataColumn(label: Text('Police Station')),
+                        DataColumn(label: Text('Status')),
+                      ],
+                      rows: list.map((p) => DataRow(
+                        onSelectChanged: (_) => context.go('/prisoners/${p.id}'),
+                        cells: [
+                          DataCell(Text(p.prisonerId, style: const TextStyle(fontFamily: 'monospace', fontSize: 12))),
+                          DataCell(Text(p.name, style: const TextStyle(fontWeight: FontWeight.w500))),
+                          DataCell(Text(p.prisonName)),
+                          DataCell(Row(children: [
+                            Icon(Icons.calendar_today, size: 12, color: p.admissionDate.isToday ? AppTheme.success : AppTheme.textSecondary),
+                            const SizedBox(width: 4),
+                            Text(p.admissionDate.displayDate, style: TextStyle(color: p.admissionDate.isToday ? AppTheme.success : null, fontWeight: p.admissionDate.isToday ? FontWeight.w600 : FontWeight.w400)),
+                          ])),
+                          DataCell(Text(p.policeStation)),
+                          DataCell(StatusBadge(label: p.status.label, color: p.status == PrisonerStatus.undertrial ? AppTheme.warning : AppTheme.error)),
+                        ],
+                      )).toList(),
+                    ),
+                  ),
+                ),
               ),
-            )),
+            ),
           );
         },
       ),

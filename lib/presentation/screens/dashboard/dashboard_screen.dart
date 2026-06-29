@@ -22,6 +22,7 @@ class DashboardScreen extends ConsumerWidget {
     return PageWrapper(
       title: 'Dashboard',
       subtitle: 'Overview — ${DateFormat('EEEE, d MMMM yyyy').format(now)}',
+      scrollable: true,
       child: statsAsync.when(
         loading: () => const LoadingState(),
         error: (e, _) => ErrorState(message: e.toString(), onRetry: () => ref.invalidate(dashboardStatsProvider)),
@@ -39,7 +40,8 @@ class _DashboardContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 900;
-    final crossAxisCount = isDesktop ? 4 : (width >= 600 ? 3 : 2);
+    final isTablet  = width >= 600;
+    final crossAxisCount = isDesktop ? 4 : (isTablet ? 3 : 2);
 
     final cards = [
       _CardDef('Total Prisoners',    stats['total'] ?? 0,       Icons.groups,           AppTheme.cardTotal),
@@ -61,7 +63,7 @@ class _DashboardContent extends StatelessWidget {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: Spacing.md,
             mainAxisSpacing: Spacing.md,
-            childAspectRatio: isDesktop ? 1.6 : 1.3,
+            childAspectRatio: isDesktop ? 1.6 : (isTablet ? 1.4 : 1.1),
           ),
           itemCount: cards.length,
           itemBuilder: (ctx, i) {
@@ -115,8 +117,7 @@ class _DashboardContent extends StatelessWidget {
             const Icon(Icons.info_outline, size: 16, color: AppTheme.info),
             const SizedBox(width: 10),
             Expanded(child: Text(
-              'System is running in offline mode. All data stored locally. '
-              'Configure server connection in Settings for cloud sync.',
+              'System connected to cloud backend. Data is shared across all devices in real time.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppTheme.info),
             )),
           ]),
