@@ -24,7 +24,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth',      authRoutes);
 app.use('/api/prisoners', prisonerRoutes);
 
-// Health check
+// Root + health check
+app.get('/',           (_, res) => res.json({ name: 'PUMS API', status: 'ok' }));
 app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
 // ── Error handler (must be last) ──────────────────────────────────────────────
