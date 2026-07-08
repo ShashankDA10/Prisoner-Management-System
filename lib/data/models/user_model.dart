@@ -32,7 +32,7 @@ class UserModel {
       id:            map['id'] as String,
       name:          map['name'] as String,
       username:      map['username'] as String,
-      passwordHash:  map['password_hash'] as String,
+      passwordHash:  map['password_hash'] as String? ?? '',
       role:          UserRole.values.firstWhere(
           (e) => e.name == (map['role'] as String),
           orElse: () => UserRole.si),

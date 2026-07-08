@@ -45,7 +45,8 @@ class _State extends ConsumerState<UserFormScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final u = await ref.read(userRepositoryProvider).getById(widget.userId!);
+    final u = await ref.read(allUsersProvider.future)
+        .then((list) => list.where((u) => u.id == widget.userId).firstOrNull);
     if (u == null || !mounted) {
       setState(() => _loading = false);
       return;
@@ -70,28 +71,41 @@ class _State extends ConsumerState<UserFormScreen> {
       return;
     }
     setState(() => _loading = true);
-    final now = DateTime.now();
-    final user = UserModel(
-      id:            _existing?.id ?? const Uuid().v4(),
-      name:          _nameCtrl.text.trim(),
-      username:      _userCtrl.text.trim(),
-      passwordHash:  _passCtrl.text.isNotEmpty
-          ? UserRepository.hashPassword(_passCtrl.text)
-          : (_existing?.passwordHash ?? ''),
-      role:          _role,
-      policeStation: _selectedStation?.isEmpty == true ? null : _selectedStation,
-      email:         _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-      phone:         _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-      isActive:      _active,
-      createdAt:     _existing?.createdAt ?? now,
-      updatedAt:     now,
-    );
-    if (_isEdit) {
-      await ref.read(userNotifierProvider.notifier).updateUser(user);
-    } else {
-      await ref.read(userNotifierProvider.notifier).addUser(user);
+    try {
+      final now = DateTime.now();
+      final plainPassword = _passCtrl.text;
+      final user = UserModel(
+        id:            _existing?.id ?? const Uuid().v4(),
+        name:          _nameCtrl.text.trim(),
+        username:      _userCtrl.text.trim(),
+        passwordHash:  plainPassword.isNotEmpty
+            ? UserRepository.hashPassword(plainPassword)
+            : (_existing?.passwordHash ?? ''),
+        role:          _role,
+        policeStation: _selectedStation?.isEmpty == true ? null : _selectedStation,
+        email:         _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        phone:         _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        isActive:      _active,
+        createdAt:     _existing?.createdAt ?? now,
+        updatedAt:     now,
+      );
+      if (_isEdit) {
+        await ref.read(userNotifierProvider.notifier)
+            .updateUser(user, plainPassword: plainPassword);
+      } else {
+        await ref.read(userNotifierProvider.notifier)
+            .addUser(user, plainPassword: plainPassword);
+      }
+      if (mounted) context.go(Routes.users);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    if (mounted) context.go(Routes.users);
   }
 
   @override

@@ -27,6 +27,7 @@ function initDb() {
   db.pragma('foreign_keys = ON');
 
   createSchema();
+  migrateSchema();
   seedAdmin();
 
   console.log(`[DB] SQLite ready at ${dbFile}`);
@@ -76,6 +77,13 @@ function createSchema() {
     CREATE INDEX IF NOT EXISTS idx_prisoners_admission  ON prisoners(admission_date);
     CREATE INDEX IF NOT EXISTS idx_prisoners_prisoner_id ON prisoners(prisoner_id);
   `);
+}
+
+// ── Migrations (safe: each ALTER is ignored if column already exists) ────────
+
+function migrateSchema() {
+  try { db.exec('ALTER TABLE users ADD COLUMN email TEXT'); } catch {}
+  try { db.exec('ALTER TABLE users ADD COLUMN phone TEXT'); } catch {}
 }
 
 // ── Seed default admin on first run ──────────────────────────────────────────

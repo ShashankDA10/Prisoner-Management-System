@@ -8,6 +8,7 @@ const { initDb }       = require('./config/database');
 const { errorHandler } = require('./middleware/error.middleware');
 const authRoutes       = require('./routes/auth.routes');
 const prisonerRoutes   = require('./routes/prisoner.routes');
+const userRoutes       = require('./routes/user.routes');
 
 // ── Init DB before starting server ───────────────────────────────────────────
 initDb();
@@ -23,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',      authRoutes);
 app.use('/api/prisoners', prisonerRoutes);
+app.use('/api/users',     userRoutes);
 
 // Root + health check
 app.get('/',           (_, res) => res.json({ name: 'PUMS API', status: 'ok' }));
