@@ -297,15 +297,8 @@ class _State extends ConsumerState<ExcelImportDialog> {
   Future<void> _import() async {
     setState(() => _loading = true);
 
-    // Station-scoped users cannot import records under a different station.
-    // Override every record's policeStation with the user's assigned station.
-    final scope = ref.read(stationScopeProvider);
-    final records = scope != null
-        ? _preview.map((p) => p.copyWith(policeStation: scope)).toList()
-        : _preview;
-
     final result = await ref.read(prisonerNotifierProvider.notifier).bulkImport(
-      records,
+      _preview,
       updateExisting: _updateExisting,
       skipDuplicates: _skipDuplicates,
     );
@@ -413,30 +406,9 @@ class _State extends ConsumerState<ExcelImportDialog> {
   ]);
 
   Widget _previewStep() {
-    final scope = ref.read(stationScopeProvider);
     return Column(mainAxisSize: MainAxisSize.min, children: [
     Text('Preview — ${_preview.length} records from $_fileName',
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-    const SizedBox(height: 8),
-    if (scope != null)
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: AppTheme.info.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppTheme.info.withValues(alpha: 0.3)),
-        ),
-        child: Row(children: [
-          const Icon(Icons.info_outline, size: 14, color: AppTheme.info),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Police station will be set to "$scope" for all imported records.',
-              style: const TextStyle(fontSize: 12, color: AppTheme.info),
-            ),
-          ),
-        ]),
-      ),
     const SizedBox(height: 12),
     SizedBox(
       height: 320,

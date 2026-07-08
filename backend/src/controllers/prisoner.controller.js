@@ -79,12 +79,7 @@ class PrisonerController {
       return res.status(400).json({ error: 'No prisoners provided' });
     }
 
-    // Station-locked users: override policeStation on every record from the JWT
-    const models = req.stationScope
-      ? prisoners.map(p => ({ ...p, policeStation: req.stationScope }))
-      : prisoners;
-
-    const result = prisonerService.bulkImportModels(models, { updateExisting, skipDuplicates });
+    const result = prisonerService.bulkImportModels(prisoners, { updateExisting, skipDuplicates });
     res.json({
       message: `Bulk import: ${result.inserted} inserted, ${result.updated} updated, ${result.skipped} skipped`,
       ...result,
@@ -96,9 +91,8 @@ class PrisonerController {
 
     const { updateExisting = false, skipDuplicates = true } = req.body;
     const result = await prisonerService.importExcel(req.file.buffer, {
-      updateExisting:  updateExisting === 'true' || updateExisting === true,
-      skipDuplicates:  skipDuplicates !== 'false' && skipDuplicates !== false,
-      stationOverride: req.stationScope,
+      updateExisting: updateExisting === 'true' || updateExisting === true,
+      skipDuplicates: skipDuplicates !== 'false' && skipDuplicates !== false,
     });
 
     res.json({
