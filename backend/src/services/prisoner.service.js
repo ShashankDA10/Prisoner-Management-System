@@ -2,44 +2,48 @@ const prisonerRepo = require('../repositories/prisoner.repository');
 const excelService = require('./excel.service');
 
 class PrisonerService {
-  getAll()          { return prisonerRepo.getAll(); }
-  getById(id)       { return prisonerRepo.getById(id); }
-  search(query)     { return prisonerRepo.search(query); }
-  getByStatus(s)    { return prisonerRepo.getByStatus(s); }
-  getDashboardStats() { return prisonerRepo.getDashboardStats(); }
+  getAll(station = null)          { return prisonerRepo.getAll(station); }
+  getById(id)                     { return prisonerRepo.getById(id); }
+  search(query, station = null)   { return prisonerRepo.search(query, station); }
+  getByStatus(s, station = null)  { return prisonerRepo.getByStatus(s, station); }
 
-  getByDateFilter(filter, from, to) {
-    return prisonerRepo.getByDateFilter(filter, from, to);
+  getDashboardStats(station = null) {
+    return prisonerRepo.getDashboardStats(station);
   }
 
-  /** Returns filtered list based on optional query params. */
+  getByDateFilter(filter, from, to, station = null) {
+    return prisonerRepo.getByDateFilter(filter, from, to, station);
+  }
+
   filter({ q, status, station } = {}) {
-    let list = q?.trim() ? prisonerRepo.search(q.trim()) : prisonerRepo.getAll();
-    if (status)  list = list.filter(p => p.status === status);
-    if (station) list = list.filter(p =>
-      p.policeStation.trim().toLowerCase() === station.trim().toLowerCase());
+    let list = q?.trim()
+      ? prisonerRepo.search(q.trim(), station)
+      : prisonerRepo.getAll(station);
+    if (status) list = list.filter(p => p.status === status);
     return list;
   }
 
-  insert(model, userId)  {
+  insert(model, userId) {
     return prisonerRepo.insert({ ...model, createdBy: userId });
   }
 
-  update(model)    { return prisonerRepo.update(model); }
-  delete(id)       { return prisonerRepo.delete(id); }
+  update(model)  { return prisonerRepo.update(model); }
+  delete(id)     { return prisonerRepo.delete(id); }
 
-  /** Bulk import from pre-parsed JSON models (called from Flutter). */
+  searchCrossStation(query, excludeStation) {
+    return prisonerRepo.searchCrossStation(query, excludeStation);
+  }
+
   bulkImportModels(models, { updateExisting = false, skipDuplicates = true } = {}) {
     return prisonerRepo.bulkImport(models, { updateExisting, skipDuplicates });
   }
 
-  /**
-   * Parse Excel buffer and bulk-import.
-   * Returns { inserted, updated, skipped, errors }.
-   */
-  async importExcel(buffer, { updateExisting = false, skipDuplicates = true } = {}) {
+  async importExcel(buffer, { updateExisting = false, skipDuplicates = true, stationOverride = null } = {}) {
     const { models, errors } = excelService.parseExcel(buffer);
-    const stats = prisonerRepo.bulkImport(models, { updateExisting, skipDuplicates });
+    const overridden = stationOverride
+      ? models.map(m => ({ ...m, policeStation: stationOverride }))
+      : models;
+    const stats = prisonerRepo.bulkImport(overridden, { updateExisting, skipDuplicates });
     return { ...stats, parseErrors: errors };
   }
 }

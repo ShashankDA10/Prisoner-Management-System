@@ -77,6 +77,16 @@ enum UserRole {
 
   /// Returns true if the role can export reports.
   bool get canExport => true;
+
+  /// Returns true if the role can see ALL stations (no station-based data isolation).
+  /// Roles below this threshold (inspector, si, prisonOfficer) are restricted
+  /// to their own assigned police station.
+  bool get canSeeAllStations =>
+      this == admin || this == commissioner || this == dcpSp || this == acpDySp;
+
+  /// Returns true if a police station MUST be assigned to users with this role.
+  bool get requiresStation =>
+      this == inspector || this == si || this == prisonOfficer;
 }
 
 /// Audit action types.

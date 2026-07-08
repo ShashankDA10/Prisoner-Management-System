@@ -22,6 +22,10 @@ class ApiConfig {
 
   static String prisonerById(String id) => '/api/prisoners/$id';
 
+  /// Cross-station read-only search (returns prisoners from stations other
+  /// than the requester's own station; excludeStation param is optional).
+  static const String prisonersCrossStation = '/api/prisoners/cross-station';
+
   /// Request timeout
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 30);

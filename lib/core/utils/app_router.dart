@@ -14,6 +14,7 @@ import '../../presentation/screens/ipc_lookup/ipc_lookup_screen.dart';
 import '../../presentation/screens/reports/reports_screen.dart';
 import '../../presentation/screens/users/users_screen.dart';
 import '../../presentation/screens/users/user_form_screen.dart';
+import '../../presentation/screens/other_stations/other_station_cases_screen.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/widgets/navigation/app_shell.dart';
 
@@ -33,6 +34,7 @@ class Routes {
   static const String userAdd        = '/users/add';
   static const String userEdit       = '/users/:id/edit';
   static const String settings       = '/settings';
+  static const String otherStations  = '/other-stations';
 }
 
 // ── Router provider ──────────────────────────────────────────────────────────
@@ -79,7 +81,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: Routes.userEdit,
             builder: (_, state) => UserFormScreen(userId: state.pathParameters['id']),
           ),
-          GoRoute(path: Routes.settings,   builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: Routes.settings,      builder: (_, __) => const SettingsScreen()),
+          GoRoute(path: Routes.otherStations, builder: (_, __) => const OtherStationCasesScreen()),
         ],
       ),
     ],

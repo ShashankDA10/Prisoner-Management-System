@@ -26,14 +26,15 @@ class _NavItem {
 }
 
 const _navItems = [
-  _NavItem(label: 'Dashboard',  icon: Icons.space_dashboard_outlined,  activeIcon: Icons.space_dashboard,    route: Routes.dashboard),
-  _NavItem(label: 'Prisoners',  icon: Icons.people_outlined,            activeIcon: Icons.people,             route: Routes.prisoners),
-  _NavItem(label: 'Admitted',   icon: Icons.login_outlined,             activeIcon: Icons.login,              route: Routes.admitted),
-  _NavItem(label: 'Released',   icon: Icons.logout_outlined,            activeIcon: Icons.logout,             route: Routes.released),
-  _NavItem(label: 'Reports',    icon: Icons.bar_chart_outlined,         activeIcon: Icons.bar_chart,          route: Routes.reports),
-  _NavItem(label: 'IPC/BNS',   icon: Icons.gavel_outlined,             activeIcon: Icons.gavel,              route: Routes.ipcLookup),
-  _NavItem(label: 'Users',      icon: Icons.manage_accounts_outlined,   activeIcon: Icons.manage_accounts,    route: Routes.users, minRole: UserRole.admin),
-  _NavItem(label: 'Settings',   icon: Icons.settings_outlined,          activeIcon: Icons.settings,           route: Routes.settings),
+  _NavItem(label: 'Dashboard',      icon: Icons.space_dashboard_outlined,  activeIcon: Icons.space_dashboard,    route: Routes.dashboard),
+  _NavItem(label: 'Prisoners',      icon: Icons.people_outlined,            activeIcon: Icons.people,             route: Routes.prisoners),
+  _NavItem(label: 'Admitted',       icon: Icons.login_outlined,             activeIcon: Icons.login,              route: Routes.admitted),
+  _NavItem(label: 'Released',       icon: Icons.logout_outlined,            activeIcon: Icons.logout,             route: Routes.released),
+  _NavItem(label: 'Other Stations', icon: Icons.swap_horiz_outlined,        activeIcon: Icons.swap_horiz,         route: Routes.otherStations),
+  _NavItem(label: 'Reports',        icon: Icons.bar_chart_outlined,         activeIcon: Icons.bar_chart,          route: Routes.reports),
+  _NavItem(label: 'IPC/BNS',       icon: Icons.gavel_outlined,             activeIcon: Icons.gavel,              route: Routes.ipcLookup),
+  _NavItem(label: 'Users',          icon: Icons.manage_accounts_outlined,   activeIcon: Icons.manage_accounts,    route: Routes.users, minRole: UserRole.admin),
+  _NavItem(label: 'Settings',       icon: Icons.settings_outlined,          activeIcon: Icons.settings,           route: Routes.settings),
 ];
 
 class AppShell extends ConsumerWidget {
@@ -231,6 +232,25 @@ class _SidebarFooter extends StatelessWidget {
               user?.role.label ?? '',
               style: const TextStyle(color: AppTheme.sidebarText, fontSize: 11),
             ),
+            if (user?.policeStation != null && user!.policeStation!.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Row(children: [
+                const Icon(Icons.local_police_outlined,
+                    size: 10, color: AppTheme.sidebarText),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    user.policeStation!,
+                    style: const TextStyle(
+                        color: AppTheme.sidebarText,
+                        fontSize: 10,
+                        fontStyle: FontStyle.italic),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ]),
+            ],
           ]),
         ),
         IconButton(

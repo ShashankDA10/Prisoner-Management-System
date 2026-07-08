@@ -1,12 +1,7 @@
 const jwt = require('jsonwebtoken');
 
-/**
- * Verifies the Bearer JWT in the Authorization header.
- * Attaches decoded payload to req.user.
- *
- * MIGRATION NOTE: Replace this file with an OAuth/session strategy later.
- * The rest of the codebase uses req.user and never touches JWT directly.
- */
+const STATION_LOCKED_ROLES = new Set(['inspector', 'si', 'prisonOfficer']);
+
 function authenticate(req, res, next) {
   const header = req.headers.authorization || '';
   const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -23,7 +18,29 @@ function authenticate(req, res, next) {
   }
 }
 
-/** Only allows users with role 'admin'. */
+/**
+ * Derives station scope from the JWT — never from request params.
+ * Station-locked roles get req.stationScope = their assigned station.
+ * Global-access roles (admin, commissioner, dcpSp, acpDySp) get null.
+ */
+function attachStationScope(req, res, next) {
+  const locked = STATION_LOCKED_ROLES.has(req.user?.role);
+
+  if (locked) {
+    const station = req.user.policeStation;
+    if (!station) {
+      return res.status(403).json({
+        error: 'Your account has no police station assigned. Contact your administrator.',
+      });
+    }
+    req.stationScope = station;
+  } else {
+    req.stationScope = null;
+  }
+
+  next();
+}
+
 function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
@@ -31,4 +48,4 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { authenticate, requireAdmin };
+module.exports = { authenticate, attachStationScope, requireAdmin };

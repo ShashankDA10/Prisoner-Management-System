@@ -6,19 +6,32 @@ import '../datasources/api_client.dart';
 import '../models/prisoner_model.dart';
 import 'prisoner_repository.dart';
 
-/// Remote (REST API) implementation of PrisonerRepositoryBase.
+/// Remote (REST API) implementation of [PrisonerRepositoryBase].
 ///
-/// Mirrors the SQLite implementation exactly — the Riverpod providers
-/// never need to know which implementation is active.
-///
-/// MIGRATION: This class is the only thing that changes when you swap
-/// the backend database/provider.
+/// Every list-returning method passes the user's [station] as a query param
+/// so the server enforces station-scoped filtering server-side.
+/// Passing null means "no station restriction" (admin path).
 class RemotePrisonerRepository implements PrisonerRepositoryBase {
   final _api = ApiClient.instance;
 
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  Map<String, dynamic>? _stationParam(String? station) =>
+      station != null ? {'station': station} : null;
+
+  Map<String, dynamic> _merge(
+    Map<String, dynamic>? a,
+    Map<String, dynamic>? b,
+  ) => {...?a, ...?b};
+
+  // ── CRUD ────────────────────────────────────────────────────────────────────
+
   @override
-  Future<List<PrisonerModel>> getAll() async {
-    final res = await _api.get(ApiConfig.prisoners);
+  Future<List<PrisonerModel>> getAll({String? station}) async {
+    final res = await _api.get(
+      ApiConfig.prisoners,
+      params: _stationParam(station),
+    );
     return _parseList(res.data['data']);
   }
 
@@ -55,15 +68,29 @@ class RemotePrisonerRepository implements PrisonerRepositoryBase {
     await _api.delete(ApiConfig.prisonerById(id));
   }
 
+  // ── Queries ──────────────────────────────────────────────────────────────────
+
   @override
-  Future<List<PrisonerModel>> search(String query) async {
-    final res = await _api.get(ApiConfig.prisoners, params: {'q': query});
+  Future<List<PrisonerModel>> search(
+    String query, {
+    String? station,
+  }) async {
+    final res = await _api.get(
+      ApiConfig.prisoners,
+      params: _merge({'q': query}, _stationParam(station)),
+    );
     return _parseList(res.data['data']);
   }
 
   @override
-  Future<List<PrisonerModel>> getByStatus(PrisonerStatus status) async {
-    final res = await _api.get(ApiConfig.prisoners, params: {'status': status.name});
+  Future<List<PrisonerModel>> getByStatus(
+    PrisonerStatus status, {
+    String? station,
+  }) async {
+    final res = await _api.get(
+      ApiConfig.prisoners,
+      params: _merge({'status': status.name}, _stationParam(station)),
+    );
     return _parseList(res.data['data']);
   }
 
@@ -72,21 +99,25 @@ class RemotePrisonerRepository implements PrisonerRepositoryBase {
     DateFilter filter, {
     DateTime? from,
     DateTime? to,
+    String? station,
   }) async {
     final params = <String, dynamic>{'filter': filter.name};
     if (from != null) params['from'] = from.toIso8601String();
-    if (to   != null) params['to']   = to.toIso8601String();
+    if (to != null) params['to'] = to.toIso8601String();
+    if (station != null) params['station'] = station;
     final res = await _api.get(ApiConfig.prisonerByDate, params: params);
     return _parseList(res.data['data']);
   }
 
   @override
-  Future<Map<String, int>> getDashboardStats() async {
-    final res = await _api.get(ApiConfig.prisonerStats);
+  Future<Map<String, int>> getDashboardStats({String? station}) async {
+    final res = await _api.get(
+      ApiConfig.prisonerStats,
+      params: _stationParam(station),
+    );
     return Map<String, int>.from(res.data as Map);
   }
 
-  /// Bulk import pre-parsed models as JSON — called from ExcelImportDialog.
   @override
   Future<Map<String, int>> bulkImport(
     List<PrisonerModel> prisoners, {
@@ -96,39 +127,38 @@ class RemotePrisonerRepository implements PrisonerRepositoryBase {
     final res = await _api.post(
       '${ApiConfig.prisoners}/bulk',
       data: {
-        'prisoners':     prisoners.map((p) => p.toApiJson()).toList(),
+        'prisoners': prisoners.map((p) => p.toApiJson()).toList(),
         'updateExisting': updateExisting,
         'skipDuplicates': skipDuplicates,
       },
     );
     return {
       'inserted': res.data['inserted'] as int? ?? 0,
-      'updated':  res.data['updated']  as int? ?? 0,
-      'skipped':  res.data['skipped']  as int? ?? 0,
+      'updated': res.data['updated'] as int? ?? 0,
+      'skipped': res.data['skipped'] as int? ?? 0,
     };
   }
 
-  /// Bulk import via raw Excel file bytes (alternative path).
-  Future<Map<String, int>> bulkImportExcel(
-    List<int> fileBytes,
-    String fileName, {
-    bool updateExisting = false,
-    bool skipDuplicates = true,
+  /// Cross-station read-only search.
+  /// The backend [ApiConfig.prisonersCrossStation] endpoint returns all
+  /// records visible to the authenticated user regardless of their station,
+  /// optionally excluding [excludeStation].
+  @override
+  Future<List<PrisonerModel>> searchCrossStation(
+    String query, {
+    String? excludeStation,
   }) async {
-    final form = FormData.fromMap({
-      'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
-      'updateExisting': updateExisting.toString(),
-      'skipDuplicates': skipDuplicates.toString(),
-    });
-    final res = await _api.postForm(ApiConfig.prisonerImport, form);
-    return {
-      'inserted': res.data['inserted'] as int? ?? 0,
-      'updated':  res.data['updated']  as int? ?? 0,
-      'skipped':  res.data['skipped']  as int? ?? 0,
-    };
+    final params = <String, dynamic>{};
+    if (query.isNotEmpty) params['q'] = query;
+    if (excludeStation != null) params['excludeStation'] = excludeStation;
+    final res = await _api.get(
+      ApiConfig.prisonersCrossStation,
+      params: params.isEmpty ? null : params,
+    );
+    return _parseList(res.data['data']);
   }
 
-  // ── Helper ───────────────────────────────────────────────────────────────
+  // ── Helper ───────────────────────────────────────────────────────────────────
 
   List<PrisonerModel> _parseList(dynamic data) {
     if (data == null) return [];

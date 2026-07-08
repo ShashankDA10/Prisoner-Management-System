@@ -1,21 +1,16 @@
-/**
- * Prisoner repository — SQLite implementation.
- *
- * MIGRATION NOTE: To switch to PostgreSQL/MySQL, implement the same methods
- * with pg/mysql2/Sequelize and update the binding in prisoner.service.js.
- * No other file needs to change.
- *
- * All methods are synchronous at the DB level (better-sqlite3) but return
- * values directly — the service layer may wrap them in async if needed.
- */
-
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../config/database');
 const TABLE = 'prisoners';
 
 class PrisonerRepository {
 
-  getAll() {
+  getAll(station = null) {
+    if (station) {
+      return getDb()
+        .prepare(`SELECT * FROM ${TABLE} WHERE LOWER(police_station) = LOWER(?) ORDER BY created_at DESC`)
+        .all(station)
+        .map(rowToModel);
+    }
     return getDb()
       .prepare(`SELECT * FROM ${TABLE} ORDER BY created_at DESC`)
       .all()
@@ -27,18 +22,34 @@ class PrisonerRepository {
     return row ? rowToModel(row) : null;
   }
 
-  search(query) {
+  search(query, station = null) {
     const q = `%${query}%`;
+    if (station) {
+      return getDb().prepare(`
+        SELECT * FROM ${TABLE}
+        WHERE (name LIKE ? OR prisoner_id LIKE ? OR fir_number LIKE ?
+            OR crime_number LIKE ? OR police_station LIKE ?
+            OR ipc_sections LIKE ? OR bns_sections LIKE ?)
+          AND LOWER(police_station) = LOWER(?)
+        ORDER BY name ASC
+      `).all(q, q, q, q, q, q, q, station).map(rowToModel);
+    }
     return getDb().prepare(`
       SELECT * FROM ${TABLE}
-      WHERE  name LIKE ? OR prisoner_id LIKE ? OR fir_number LIKE ?
+      WHERE name LIKE ? OR prisoner_id LIKE ? OR fir_number LIKE ?
           OR crime_number LIKE ? OR police_station LIKE ?
           OR ipc_sections LIKE ? OR bns_sections LIKE ?
       ORDER BY name ASC
     `).all(q, q, q, q, q, q, q).map(rowToModel);
   }
 
-  getByStatus(status) {
+  getByStatus(status, station = null) {
+    if (station) {
+      return getDb()
+        .prepare(`SELECT * FROM ${TABLE} WHERE status = ? AND LOWER(police_station) = LOWER(?) ORDER BY name ASC`)
+        .all(status, station)
+        .map(rowToModel);
+    }
     return getDb()
       .prepare(`SELECT * FROM ${TABLE} WHERE status = ? ORDER BY name ASC`)
       .all(status)
@@ -46,41 +57,75 @@ class PrisonerRepository {
   }
 
   /**
-   * filter: 'today' | 'thisWeek' | 'thisMonth' | 'custom'
-   * from / to: ISO strings (for custom range)
+   * Returns all prisoners from stations other than excludeStation.
+   * Used by the cross-station read-only screen.
    */
-  getByDateFilter(filter, from, to) {
-    let stmt, params = [];
+  searchCrossStation(query, excludeStation = null) {
+    const hasQuery = query && query.trim().length > 0;
+    const q = `%${query}%`;
+
+    if (excludeStation) {
+      if (hasQuery) {
+        return getDb().prepare(`
+          SELECT * FROM ${TABLE}
+          WHERE (name LIKE ? OR prisoner_id LIKE ? OR fir_number LIKE ?
+              OR crime_number LIKE ? OR police_station LIKE ?
+              OR ipc_sections LIKE ? OR bns_sections LIKE ?)
+            AND LOWER(police_station) != LOWER(?)
+          ORDER BY name ASC
+        `).all(q, q, q, q, q, q, q, excludeStation).map(rowToModel);
+      }
+      return getDb()
+        .prepare(`SELECT * FROM ${TABLE} WHERE LOWER(police_station) != LOWER(?) ORDER BY name ASC`)
+        .all(excludeStation)
+        .map(rowToModel);
+    }
+
+    return hasQuery ? this.search(query) : this.getAll();
+  }
+
+  getByDateFilter(filter, from, to, station = null) {
     const db = getDb();
+    const sc = station ? ` AND LOWER(police_station) = LOWER(?)` : '';
+    let stmt, params;
 
     switch (filter) {
       case 'today':
-        stmt = `SELECT * FROM ${TABLE} WHERE DATE(admission_date) = DATE('now') ORDER BY admission_date DESC`;
+        stmt   = `SELECT * FROM ${TABLE} WHERE DATE(admission_date) = DATE('now')${sc} ORDER BY admission_date DESC`;
+        params = station ? [station] : [];
         break;
       case 'thisWeek':
-        stmt = `SELECT * FROM ${TABLE} WHERE admission_date >= DATE('now', 'weekday 0', '-7 days') ORDER BY admission_date DESC`;
+        stmt   = `SELECT * FROM ${TABLE} WHERE admission_date >= DATE('now', 'weekday 0', '-7 days')${sc} ORDER BY admission_date DESC`;
+        params = station ? [station] : [];
         break;
       case 'thisMonth':
-        stmt = `SELECT * FROM ${TABLE} WHERE strftime('%Y-%m', admission_date) = strftime('%Y-%m', 'now') ORDER BY admission_date DESC`;
+        stmt   = `SELECT * FROM ${TABLE} WHERE strftime('%Y-%m', admission_date) = strftime('%Y-%m', 'now')${sc} ORDER BY admission_date DESC`;
+        params = station ? [station] : [];
         break;
       case 'custom':
-        stmt   = `SELECT * FROM ${TABLE} WHERE admission_date >= ? AND admission_date <= ? ORDER BY admission_date DESC`;
-        params = [from, to];
+        stmt   = `SELECT * FROM ${TABLE} WHERE admission_date >= ? AND admission_date <= ?${sc} ORDER BY admission_date DESC`;
+        params = station ? [from, to, station] : [from, to];
         break;
       default:
-        stmt = `SELECT * FROM ${TABLE} ORDER BY admission_date DESC`;
+        stmt   = station
+          ? `SELECT * FROM ${TABLE} WHERE LOWER(police_station) = LOWER(?) ORDER BY admission_date DESC`
+          : `SELECT * FROM ${TABLE} ORDER BY admission_date DESC`;
+        params = station ? [station] : [];
     }
 
     return db.prepare(stmt).all(...params).map(rowToModel);
   }
 
-  getDashboardStats() {
+  getDashboardStats(station = null) {
     const db = getDb();
-    const count = (where) =>
-      db.prepare(`SELECT COUNT(*) as n FROM ${TABLE}${where ? ` WHERE ${where}` : ''}`).get().n;
+    const sc = station ? ' AND LOWER(police_station) = LOWER(?)' : '';
+    const sp = station ? [station] : [];
+
+    const count = (cond) =>
+      db.prepare(`SELECT COUNT(*) as n FROM ${TABLE} WHERE ${cond}${sc}`).get(...sp).n;
 
     return {
-      total:       count(null),
+      total:       count('1=1'),
       undertrial:  count("status = 'undertrial'"),
       convicted:   count("status = 'convicted'"),
       admitted:    count("DATE(admission_date) = DATE('now')"),
@@ -128,11 +173,6 @@ class PrisonerRepository {
     getDb().prepare(`DELETE FROM ${TABLE} WHERE id = ?`).run(id);
   }
 
-  /**
-   * Bulk import — returns { inserted, updated, skipped }.
-   * updateExisting: overwrite if prisoner_id already exists
-   * skipDuplicates: silently skip if prisoner_id exists
-   */
   bulkImport(models, { updateExisting = false, skipDuplicates = true } = {}) {
     const db = getDb();
     let inserted = 0, updated = 0, skipped = 0;
